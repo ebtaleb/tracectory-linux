@@ -52,7 +52,9 @@ def dumpToDb(iterator, db):
 		for key,value in changeMatrix.items():
 			k = normalize(key)
 			newMatrix[k] = list([normalize(x) for x in value])
-			addToList(db, "write_%s" % str(k), str(curTime))
+			if isinstance(k, int):
+				#We store memory location accesses to a list
+				addToList(db, "write_%s" % str(k), str(curTime))
 
 		record = { 'PC' : eip,
 			  'disassembly' : str(instr),
