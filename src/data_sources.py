@@ -1,5 +1,6 @@
 from collections import defaultdict
 import struct
+import gzip
 
 class FossileStream:
 	def __init__(self, fileName):
@@ -43,8 +44,11 @@ class FossileStream:
 
 class Trace:
 	SEEK_GRANULARITY = 1000
-	def __init__(self, filename):
-		self.fp = open(filename)
+	def __init__(self, filename, compressed = False):
+		if compressed:
+			self.fp = gzip.open(filename)
+		else:
+			self.fp = open(filename)
 		self.regs = defaultdict(int)
 		self.time = 0
 		self.quickSeek = {}

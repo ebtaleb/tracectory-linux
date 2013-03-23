@@ -22,6 +22,17 @@ def normalize(x):
 	
 	return x
 
+def addToList(db, listName, value):
+	count = 0
+	try:
+		count = int(db.Get("%s_ctr" % listName))
+	except KeyError:
+		pass
+
+	db.Put("%s_%d" % (listName,count), value)
+	db.Put("%s_ctr" % listName, str(count + 1))
+
+
 def dumpToDb(iterator, db):
 	#for details in changeMatrixIterator(t.iterate(), t, in_str):
 	count = 0
@@ -39,7 +50,9 @@ def dumpToDb(iterator, db):
 		if changeMatrix is None: continue
 
 		for key,value in changeMatrix.items():
-			newMatrix[normalize(key)] = list([normalize(x) for x in value])
+			k = normalize(key)
+			newMatrix[k] = list([normalize(x) for x in value])
+			addToList(db, "write_%s" % str(k), str(curTime))
 
 		record = { 'PC' : eip,
 			  'disassembly' : str(instr),

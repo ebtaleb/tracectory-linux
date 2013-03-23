@@ -1,6 +1,5 @@
 import os
 from elfesteem import *
-from random import randint
 from miasm.tools.pe_helper import *
 from miasm.core.bin_stream import bin_stream, bin_stream_file
 from collections import defaultdict
