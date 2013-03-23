@@ -78,9 +78,9 @@ def getSliceBytes(object, regs):
 		else:
 			raise ValueError
 
-def getIdBytes(object, regs):
-	if "_" in object.name: raise NotImplementedError
-	return [("%s_%d" % (object.name, i)) for i in xrange(0,object.size,8)]
+def getIdBytes(inputExpr, regs):
+	if "_" in inputExpr.name: raise NotImplementedError
+	return [("%s_%d" % (inputExpr.name, i)) for i in xrange(0,inputExpr.size,8)]
 
 
 def getDataSource(sourceObject, regs, byteNum):
@@ -122,7 +122,9 @@ def listUnikeys(sourceObject, regs):
 
 		return [(addrExpr.arg + i) for i in xrange(size)]
 	elif isinstance(sourceObject, ExprId):
-		return sourceObject.name
+		#XXX: Should we bit- or byteindex
+		size = sourceObject.size/8 
+		return ["%s_%d" % (sourceObject.name,i*8) for i in xrange(size)]
 	print sourceObject, sourceObject.__class__
 	raise ValueError
 

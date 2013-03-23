@@ -146,19 +146,6 @@ class MemoryHistory():
 		#self.trace = trace
 		#self.mem = mem
 
-	def indexMemoryAccess(self):
-		t = self.trace
-		writtenAt = defaultdict(list)
-		readAt = defaultdict(list)
-
-		for entry in t.iterate():
-			curTime, eip, instr, changeMatrix = entry
-
-			for dest, sources in changeMatrix.items():
-				writtenAt[dest].append(curTime)
-				for source in sources:	readAt[source].append(curTime)
-		self.readAt = readAt
-		self.writtenAt = writtenAt
 # def readAt(addrOfByte, timeSlot)
 #      - use binary search to find largest i suchthat writtenAt[addr][i]<timeSlot
 #      - seek to writtenAt[addr][i], if mov -> can produce result
@@ -169,20 +156,26 @@ class MemoryHistory():
 	def previousWrite(self, addr, time):
 		#Binary search, logarithmic time
 		addr = str(addr)
-		array = self.writtenAt[addr]
 		lower = 0
-		upper = len(array) - 1
+		try:
+			upper = int(self.oldDB.Get("write_%s_ctr" % addr)) - 1
+		except KeyError:
+			return None
 		while lower+1<upper:
 			middle = (lower+upper)/2
-			if array[middle]>time:
+			value = int(self.oldDB.Get("write_%s_%d" % (addr, middle)))
+			if value>time:
 				upper = middle - 1
 			else:
 				lower = middle
 		if upper == -1:
 			return None
-		if array[upper]<time:
-			return array[upper]
-		return array[lower]
+		upperVal = int(self.oldDB.Get("write_%s_%d" % (addr,upper)))
+		if upperVal<=time: return upperVal
+		lowerVal = int(self.oldDB.Get("write_%s_%d" % (addr,lower)))
+		if lowerVal<=time: return lowerVal
+
+		return None
 	def get(self, address, time):
 		result = self.getWithTime(address,time)
 		return result[0]

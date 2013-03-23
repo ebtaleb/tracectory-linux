@@ -1,0 +1,87 @@
+<html>
+    <head>
+	    <title>Memory Access Visualization</title>
+    <style type="text/css">
+	body {
+		background: #eee;
+	}
+    </style>
+	<script type="text/javascript" src="raphael.js"></script>
+	<script type="text/javascript" src="data.js"></script>
+	<script>
+
+	var hexBytes = [];
+	var textBytes = [];
+
+	var delay = 100;
+	var paper = null;
+
+	var lastBytes = null;
+
+	function startEvent(eventNum){
+		console.log("startEvent(" + eventNum + ")");
+		if(eventNum >= events.length || events[eventNum] == -1) return;
+		curEvent = events[eventNum];
+
+		if(lastBytes != null && !(lastBytes<curEvent[0]) && !(lastBytes>curEvent[0])){
+			return startEvent(eventNum+1);
+		}
+		console.log(curEvent[0] + " " + lastBytes + " equality " + (curEvent[0] == lastBytes));
+		lastBytes = curEvent[0];
+
+		//paper.text(100 + (curEvent[1]/0x80000000) * 300, 220, curEvent[2]).animate( {'y' : 1000}, 8000);
+
+		curInstr.attr({'text' : curEvent[2]});	
+		var anim = Raphael.animation( {'font-size' : 15 , 'fill' : Raphael.rgb(curEvent[1]/0x800000)}, delay);
+		for(var i = 0; i < curEvent[0].length; i++){
+			hexBytes[curEvent[0][i]].animate(anim);
+			textBytes[curEvent[0][i]].animate(anim);
+		}
+		setTimeout(function(){closeEvent(eventNum)}, delay);
+	}
+
+	function closeEvent(eventNum){
+		curEvent = events[eventNum];
+		var anim2 = Raphael.animation( {'font-size' : 10 , 'fill' : '#000000'}, delay);
+
+		for(var i = 0; i < curEvent[0].length; i++){
+			hexBytes[curEvent[0][i]].animate(anim2);
+			textBytes[curEvent[0][i]].animate(anim2);
+		}
+
+		setTimeout(function(){startEvent(eventNum + 1)}, delay);
+	}
+
+window.onload = function() {
+	paper = new Raphael(document.getElementById('canvas_container'), 500, 500);
+
+
+	for(i = 0; i < data.length; i++){
+		x = i%16;
+		y = Math.floor(i/16);
+		hexBytes[i] = paper.text(10+x*20, 10+y*20, data[i].toString(16)).attr({'font-size' : '10', 'font' : 'Courier New'});
+
+		var c = String.fromCharCode(data[i]);
+		if(data[i]<20 || data[i]>128) c="?";
+		textBytes[i] = paper.text(330+x*10, 10+y*20, c).attr({'font-size' : '10'});
+
+	}
+
+	curInstr = paper.text(400,200);
+	startEvent(0);
+	
+}
+
+	</script>
+        <style type="text/css">
+            #canvas_container {
+                width: 500px;
+                border: 1px solid #aaa;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="canvas_container"></div>
+    </body>
+</html>
+

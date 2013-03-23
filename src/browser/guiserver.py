@@ -6,13 +6,12 @@ from threading import Lock
 from time import time as systemtime
 import leveldb
 #t = Trace("binaries/ex3/trace.txt")
-oldDB = leveldb.LevelDB("db/memcrypt_oldEngine")
-newDB = leveldb.LevelDB("db/memcrypt_newEngine")
+oldDB = leveldb.LevelDB("db/t206_oldEngine")
+newDB = leveldb.LevelDB("db/t206_newEngine")
 
 t = DataFlow(oldDB)
 
 mh = MemoryHistory(oldDB, newDB)
-mh.indexMemoryAccess()
 
 
 lock = Lock()
@@ -30,7 +29,7 @@ class GuiServer(object):
 		res['times'] = []
 
 		with lock:
-			for addr in xrange(address,address + 14):
+			for addr in xrange(address,address + 8*6):
 				result = mh.getWithTime(addr, timeSlot)
 				if result is None:
 					res['bytes'].append(-1)

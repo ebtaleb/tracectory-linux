@@ -69,6 +69,7 @@ class Trace:
 				if curTime == time - 1: break
 		self.time += 1
 
+
 	def iterate(self, maxSteps=0xffffffffff, indexing = False):
 		endTime = self.time + maxSteps
 		while self.time<endTime:

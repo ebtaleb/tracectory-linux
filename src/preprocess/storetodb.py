@@ -3,17 +3,26 @@ sys.path.append(".")
 sys.path.append("./src")
 import os
 from traceparser import *
-import json
 from threading import Lock
 import leveldb
 from time import time as systemtime
-saveName = "t206"
+#saveName = "t206"
+
+try:
+	import simplejson as json
+except ImportError:
+	import json
+
+def usage():
+	print >>sys.stderr, "storetodb.py <trace file> <memorys snapshot> <savename>"
+
 def init():
 	global t, in_str
+	global traceFile, dumpFile
 	#t = Trace("binaries/ex3/trace.txt")
-	t = Trace("../raw/trace.txt", False)
+	t = Trace(traceFile, False)
 	#memorySpace = FossileStream("binaries/ex3/dump")
-	memorySpace = FossileStream("../raw/t206.fossile")
+	memorySpace = FossileStream(dumpFile)
 	in_str = bin_stream_file(memorySpace)
 
 def normalize(x):
@@ -65,11 +74,23 @@ def dumpToDb(iterator, db):
 		#print json.dumps(record, indent = 4)
 	db.Put("maxTime",str(curTime))
 
-print >>sys.stderr, "Using old engine"
-init()
-db = leveldb.LevelDB("./db/%s_oldEngine" % saveName)
-dumpToDb(changeMatrixIterator(t.iterate(), t, in_str, newEngine = False), db)
-print >>sys.stderr, "Using new engine"
-init()
-newDb = leveldb.LevelDB("./db/%s_newEngine" % saveName)
-dumpToDb(changeMatrixIterator(t.iterate(), t, in_str, newEngine = True, suppressErrors = True), newDb)
+def process():
+	print >>sys.stderr, "Using old engine"
+	init()
+	db = leveldb.LevelDB("./db/%s_oldEngine" % saveName)
+	dumpToDb(changeMatrixIterator(t.iterate(), t, in_str, newEngine = False), db)
+	print >>sys.stderr, "Using new engine"
+	init()
+	newDb = leveldb.LevelDB("./db/%s_newEngine" % saveName)
+	dumpToDb(changeMatrixIterator(t.iterate(), t, in_str, newEngine = True, suppressErrors = True), newDb)
+
+
+if __name__ == '__main__':
+	if len(sys.argv) != 4:
+		usage()
+		sys.exit(1)
+	saveName = sys.argv[3]
+	traceFile = sys.argv[1]
+	dumpFile = sys.argv[2]
+	process()
+	

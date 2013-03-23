@@ -1,0 +1,95 @@
+<html>
+    <head>
+	    <title>Memory Access Visualization</title>
+    <style type="text/css">
+	body {
+		background: #eee;
+	}
+    </style>
+    <script type="text/javascript" src="static/raphael.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+	<script>
+
+	var hexBytes = [];
+	var textBytes = [];
+
+	var delay = 100;
+	var paper = null;
+
+	var lastBytes = null;
+
+
+window.onload = function() {
+	paper = new Raphael(document.getElementById('canvas_container'), 500, 500);
+
+/*
+	for(i = 0; i < data.length; i++){
+		x = i%16;
+		y = Math.floor(i/16);
+		hexBytes[i] = paper.text(10+x*20, 10+y*20, data[i].toString(16)).attr({'font-size' : '10', 'font' : 'Courier New'});
+
+		var c = String.fromCharCode(data[i]);
+		if(data[i]<20 || data[i]>128) c="?";
+		textBytes[i] = paper.text(330+x*10, 10+y*20, c).attr({'font-size' : '10'});
+
+	}
+
+	curInstr = paper.text(400,200);
+	startEvent(0);*/
+	var curPos = paper.text(50,10,"Position");
+	var startX = 10, length = 450;
+	var timeTicks = 4000;
+
+	var dataLabel = paper.text(250,80,"TEXT HERE");
+
+	var start = function () {
+                    this.ox = this.attr("cx");
+                    this.oy = 400;
+                    this.animate({opacity: .5}, 200, ">");
+                },
+                move = function (dx, dy) {
+			this.attr({cx: this.ox + dx, cy: this.oy});
+			var xCoord = this.attr("cx");
+
+			if(xCoord>startX && xCoord<startX+length){
+				
+			curPos.attr({"text" : (xCoord-startX)/length});
+			}
+                },
+                up = function () {
+			this.animate({opacity: 1}, 200, ">");
+
+			var xCoord = this.attr("cx");
+			var percentage = (xCoord-startX)/length;
+			var time = Math.floor(percentage * timeTicks);
+
+			$.ajax({
+				url : "/getMem",
+				data: {'time' : time},
+				success: function(data){
+					dataLabel.attr({'text' : data});
+				}
+			})
+
+                };
+	
+
+	paper.path("M 10 400 l 450 0");
+	paper.circle(100,400,10).attr({'fill' : '#333'}).drag(move,start,up);
+	
+}
+
+	</script>
+        <style type="text/css">
+            #canvas_container {
+                width: 500px;
+                border: 1px solid #aaa;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="canvas_container"></div>
+    </body>
+</html>
+
+
