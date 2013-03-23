@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<title>Untitled</title>
+<script type="text/javascript" src="lib/graph/viz.js"></script>
+<script type="text/javascript" src="lib/dojo/dojo/dojo.js" data-dojo-config="'parseOnLoad':true,'async':true,'packages':[{'name':'gridx','location':'../gridx'},{'name':'clipart','location':'../../clipart'},{'name':'maqettaSamples','location':'../../../samples'},{'name':'maqetta','location':'../../maqetta'},{'name':'shapes','location':'../../shapes'},{'name':'zazl','location':'../../zazl'},{'name':'widgets','location':'../../custom'}],'themeMap':[['Android','',['themes/android/android.css']],['BlackBerry','',['themes/blackberry/blackberry.css']],['iPad','',['themes/ipad/ipad.css']],['iPhone','',['themes/iphone/iphone.css']],['.*','',['themes/iphone/iphone.css']]],'mblThemeFiles':[], mblLoadCompatPattern: /\/project1\/themes\/.*\.css$/"></script>
+<script type="text/javascript">
+require([
+  "dijit/dijit",
+  "dojo/parser",
+  "maqetta/space",
+  "maqetta/AppStates",
+  "dijit/form/Button",
+  "dijit/layout/BorderContainer",
+  "dijit/layout/ContentPane",
+  "dijit/MenuBar",
+  "dijit/PopupMenuBarItem",
+  "dijit/MenuItem",
+  "dijit/Menu",
+  "clipart/HScrollBar",
+  "dijit/form/HorizontalSlider",
+  "dijit/form/HorizontalRule",
+  "dijit/form/HorizontalRuleLabels",
+  "dijit/TitlePane",
+  "dijit/layout/AccordionContainer",
+  "dijit/form/Form",
+  "dijit/form/TextBox"
+]);
+</script>
+<style>@import "themes/claro/document.css";@import "themes/claro/claro.css";@import "app.css";
+</style>
+<script type="text/javascript" src="app.js"></script>
+</head>
+<body class="claro" data-maq-flow-layout="true" data-maq-comptype="desktop" data-maq-ws="collapse" id="myapp" data-maq-appstates="{}">
+ <div data-dojo-type="dijit.layout.BorderContainer" design="sidebar" persist="false" gutters="true" style="min-width: 1em; min-height: 1px; z-index: 0; width: 100%; height: 100%;">
+   <div data-dojo-type="dijit.layout.ContentPane" extractContent="false" preventCache="false" preload="false" refreshOnShow="false" region="bottom" splitter="true" maxSize="Infinity" style="height: 50px;" doLayout="false">
+    <div data-dojo-type="dijit.form.HorizontalSlider" id="timeSlide" intermediateChanges="false" maximum="4000" discreteValues="Infinity" style="height: auto; width: 100%;">
+<div data-dojo-type="dijit.form.HorizontalRule" container="bottomDecoration" style="height: 5px;"></div>
+      </div>
+    <label style="position: relative; left: 50%; right: 50%;">
+      Global time slider</label>
+  </div>
+   <div data-dojo-type="dijit.layout.ContentPane" extractContent="false" preventCache="false" preload="false" refreshOnShow="false" region="center" splitter="false" maxSize="Infinity" doLayout="false"><span data-dojo-type="dijit.MenuBar" tabIndex="0"><span data-dojo-type="dijit.PopupMenuBarItem" label="Target" iconClass="dijitNoIcon"><span data-dojo-type="dijit.Menu"><span data-dojo-type="dijit.MenuItem" label="memorycrypt.exe"></span>
+</span>
+</span><span data-dojo-type="dijit.PopupMenuBarItem" label="Help" iconClass="dijitNoIcon"><span data-dojo-type="dijit.Menu"><span data-dojo-type="dijit.MenuItem" label="About"></span><span data-dojo-type="dijit.MenuItem" label="Menu Item 2.2"></span>
+</span>
+</span>
+</span><div style="border: 1px solid black; margin: 1em; float: left; font-family: 'Courier New',Courier,monospace;">
+</div>
+<div id="firstRow" style="width: 100%;">
+<div id="accordionOne" style="width: 500px; float: left;">
+   <span data-dojo-type="dijit.layout.AccordionContainer" duration="200" persist="false" style="min-width: 1em; min-height: 1em; height: 300px; width: 500px;"><div data-dojo-type="dijit.layout.ContentPane" title="History of memory writes" extractContent="false" preventCache="false" preload="false" refreshOnShow="false" selected="true" closable="false" doLayout="false">
+     <fieldset style="border: 2px groove threedface; margin: 2px; padding: 0.75em;">
+       <legend>
+         Region</legend>
+       <label style="margin: 2px;">
+         Address:</label>
+       <input type="text" data-dojo-type="dijit.form.TextBox" intermediateChanges="false" trim="false" uppercase="false" lowercase="false" propercase="false" selectOnClick="false"></input>
+       <input type="button" data-dojo-type="dijit.form.Button" intermediateChanges="false" label="Set" iconClass="dijitNoIcon"></input>
+     </fieldset>
+     <div>
+       <span id="hexView" style="margin: 1em; font-family: 'Courier New',Courier,monospace; float: left;">hexView</span><span id="asciiView" style="margin: 1em; font-family: 'Courier New',Courier,monospace; float: left;">asciiView</span><div style="clear: both;"></div>
+     </div>
+   </div>
+   </span>
+ </div>
+<div id="accordionTwo" style="width: 500px; float: left;">
+<span data-dojo-type="dijit.layout.AccordionContainer" duration="200" persist="false" style="min-width: 1em; min-height: 1em; height: 300px; width: 800px;">
+	<div data-dojo-type="dijit.layout.ContentPane" title="Graph" extractContent="false" preventCache="false" preload="false" refreshOnShow="false" selected="true" closable="false" doLayout="false"><div id="canvas"/></div>
+</span>
+</div>
+</div>
+<span data-dojo-type="dijit.layout.AccordionContainer" style="min-width: 1em; min-height: 1em; width: 100%; height: 300px;">
+<div data-dojo-type="dijit.layout.ContentPane" title="Instructions" extractContent="false" preventCache="false" preload="false" refreshOnShow="false" selected="true" closable="false" doLayout="false"><span id="instructionView" style="margin: 1em; font-family: 'Courier New',Courier,monospace;">Instructions go here</span></div>
+</span></div>
+</div>
+</body>
+</html>
