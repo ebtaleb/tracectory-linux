@@ -28,7 +28,6 @@ class GuiServer(object):
 		res = {}
 		res['bytes'] = []
 		res['times'] = []
-		#XXX: PArse address as well
 
 		with lock:
 			for addr in xrange(address,address + 14):
@@ -49,15 +48,15 @@ class GuiServer(object):
 
 			for data in t.iterate():
 				curTime, eip, instr, changeMatrix = data
-				if data[0] == time: break
 				result['disasm'].append((curTime, eip, str(instr)))
+				if data[0] == time: break
 		return json.dumps(result)
 	def dataflow(self, time, address):
 		address = int(address)
 		time = int(time)
 		with lock:
 			startTime = systemtime()
-			df = BackwardDataFlow(t, None) #XXX: removed memory
+			df = BackwardDataFlow(t)
 			root = df.follow(address, time)
 			nodes, edges = root.dump()
 			endTime = systemtime()

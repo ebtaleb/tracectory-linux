@@ -183,17 +183,16 @@ class BackLink:
 
 
 class BackwardDataFlow:
-	def __init__(self, trace, memorySpace):
+	def __init__(self, trace):
 		self.trace = trace
-		self.memorySpace = memorySpace
 	def follow(self, address, time):
-		#Loop from time to time-MAX_TRACE
+		#TODO: Loop from time to time-MAX_TRACE
 		backtrace = self.trace
 		first = BackLink(None, None, None)
 		address = str(address)
 		taintDict = { address: first }
 		backtrace.seek(time)
-		#XXX: Migrate to new engine, when it gets better
+		#XXX: Migrate to new engine when it gets better
 		for entry in backtrace.iterate(delta = -1):
 			curTime, eip, instr, changeMatrix = entry
 			round2 = {}
