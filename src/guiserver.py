@@ -10,15 +10,13 @@ oldDB = leveldb.LevelDB("db/memcrypt_oldEngine")
 newDB = leveldb.LevelDB("db/memcrypt_newEngine")
 
 t = DataFlow(oldDB)
-memorySpace = FossileStream("binaries/ex3/dump")
 
-in_str = bin_stream_file(memorySpace)
 mh = MemoryHistory(oldDB, newDB)
 mh.indexMemoryAccess()
 
 
 lock = Lock()
-class HelloWorld(object):
+class GuiServer(object):
 	def index(self):
 		raise cherrypy.HTTPRedirect("static/file1.html")
 	def getMemJson(self, address, time):
@@ -59,7 +57,7 @@ class HelloWorld(object):
 		time = int(time)
 		with lock:
 			startTime = systemtime()
-			df = BackwardDataFlow(t, memorySpace)
+			df = BackwardDataFlow(t, None) #XXX: removed memory
 			root = df.follow(address, time)
 			nodes, edges = root.dump()
 			endTime = systemtime()
@@ -82,5 +80,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 conf = {'/static': {'tools.staticdir.on': True,
                       'tools.staticdir.dir': os.path.join(current_dir, 'static')}}
 
-cherrypy.quickstart(HelloWorld(), config = conf)
+#cherrypy.server.socket_host = "0.0.0.0"
+cherrypy.quickstart(GuiServer(), config = conf)
 
