@@ -73,7 +73,7 @@ def convertToKey(data, regs):
 	print data,repr(data)
 	return data
 
-def calcUnikeyRelations(affects, t, debug = False):
+def calcUnikeyRelations(affects, regs, debug = False):
 	# Loop through affects and transform this into a list
 	# for each unikey of the unikeys that affected it
 	# Returns a dictionary that maps each affected unikey
@@ -84,10 +84,10 @@ def calcUnikeyRelations(affects, t, debug = False):
 		readStuff = getRead(a)
 		writtenStuff = getWritten(a)
 		for w in writtenStuff:
-			listOfLocationsWritten = convertToKey(w, t.regs)
+			listOfLocationsWritten = convertToKey(w, regs)
 			readSet = set()
 			for curRead in readStuff:
-				converted = convertToKey(curRead, t.regs)
+				converted = convertToKey(curRead, regs)
 				if debug:
 					print a
 					print curRead,converted
@@ -98,41 +98,6 @@ def calcUnikeyRelations(affects, t, debug = False):
 				result[curWrite] |= readSet
 	return result
 
-
-def changeMatrixIterator(traceIterator, t, memorySpaceStream, newEngine = False, suppressErrors = False):
-	""" A convenience wrapper that allows one to iterate directly
-	through the affected locations. Performs the necessary disassembly
-	and calls calcUnikeyRelations"""
-	#TODO: We could cache this accross multiple invocations to improve performance
-	affectCache = {}
-	instrCache = {}
-	for curTime, eip in traceIterator:
-		if eip is None: continue
-
-		#Analyze instruction
-		if instrCache.has_key(eip):
-			affects = affectCache[eip]
-			instr = instrCache[eip]
-		else:
-			instr = asmbloc.dis_i(x86_mn,memorySpaceStream, eip, symbol_pool)
-			origAffects =  get_instr_expr(instr, 123, [])
-			affects = []
-			for a in origAffects:
-				affects += processAffect(a)
-			affectCache[eip] = affects
-			instrCache[eip] = instr
-
-		if newEngine:
-			try:
-				changeMatrix = convertToUnikey(affects, t.regs)
-			except:
-				changeMatrix = None
-				if not suppressErrors:
-					raise
-		else:
-			changeMatrix = calcUnikeyRelations(affects, t)
-
-		yield curTime, eip, instr, changeMatrix
 
 
 

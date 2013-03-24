@@ -6,9 +6,11 @@ from threading import Lock
 from time import time as systemtime
 import leveldb
 #t = Trace("binaries/ex3/trace.txt")
-oldDB = leveldb.LevelDB("db/t206_oldEngine")
-newDB = leveldb.LevelDB("db/t206_newEngine")
+#oldDB = leveldb.LevelDB("db/t206_oldEngine")
+#newDB = leveldb.LevelDB("db/t206_newEngine")
 
+oldDB = leveldb.LevelDB("db/dbg_memcrypt_oldEngine")
+newDB = leveldb.LevelDB("db/dbg_memcrypt_newEngine")
 t = DataFlow(oldDB)
 
 mh = MemoryHistory(oldDB, newDB)

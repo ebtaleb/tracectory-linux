@@ -8,6 +8,7 @@ import leveldb
 from time import time as systemtime
 from analysis_funcs import *
 #saveName = "t206"
+import multiprocessing
 
 try:
 	import simplejson as json
@@ -42,48 +43,112 @@ def addToList(db, listName, value):
 	db.Put("%s_%d" % (listName,count), value)
 	db.Put("%s_ctr" % listName, str(count + 1))
 
+def getChangeMatrix(eip, regs, memorySpaceStream):
+	global affectCache, instrCache
 
-def dumpToDb(iterator, db):
-	#for details in changeMatrixIterator(t.iterate(), t, in_str):
-	count = 0
-	lastTime = -1
-	for details in iterator:
-		if count%100000 == 0:
-			print >>sys.stderr, count
-			if lastTime!= -1:
-				delay = systemtime() - lastTime
-				print "%d instr/sec" % (100000./delay)
-			lastTime = systemtime()
-		curTime, eip, instr, changeMatrix = details
+	#Analyze instruction
+	if instrCache.has_key(eip):
+		affects = affectCache[eip]
+		instr = instrCache[eip]
+	else:
+		instr = asmbloc.dis_i(x86_mn,memorySpaceStream, eip, symbol_pool)
+		origAffects =  get_instr_expr(instr, 123, [])
+		affects = []
+		for a in origAffects:
+			affects += processAffect(a)
+		affectCache[eip] = affects
+		instrCache[eip] = instr
+
+	if newEngine:
+		try:
+			changeMatrix = convertToUnikey(affects, regs)
+		except:
+			changeMatrix = None
+			if not suppressErrors:
+				raise
+	else:
+		changeMatrix = calcUnikeyRelations(affects, regs)
+	if changeMatrix is None:
+		return None
+	else:
 		newMatrix = {}
-		count += 1
-		if changeMatrix is None: continue
-
 		for key,value in changeMatrix.items():
 			k = normalize(key)
 			newMatrix[k] = list([normalize(x) for x in value])
-			if isinstance(k, int):
+			#if isinstance(k, int):
 				#We store memory location accesses to a list
-				addToList(db, "write_%s" % str(k), str(curTime))
+			#	addToList(db, "write_%s" % str(k), str(curTime))
 
-		record = { 'PC' : eip,
-			  'disassembly' : str(instr),
-			  'regs' : t.regs,
-			  'changes' : newMatrix }
-		res = json.dumps(record)
-		db.Put("instr_%d" % curTime, res)
-		#print json.dumps(record, indent = 4)
-	db.Put("maxTime",str(curTime))
+	record = { 'PC' : eip,
+		  'disassembly' : str(instr),
+		  'regs' : regs,
+		  'changes' : newMatrix }
+	return record
 
-def process():
+def processLine(line):
+	eipData = line[6:line.find(" ",6)]
+	if eipData.startswith("-"): return None
+	try:
+		eip = int(eipData, 16)
+	except ValueError:
+		#print "Warning: Couldn't parse %s\n" % eipData
+		return None
+	regData = line[line.find("EAX="):].split(",")
+	regs = {}
+	for val in regData:
+		reg, value = val.split("=")
+		regs[reg.strip()] = int(value,16)
+	return getChangeMatrix(eip, regs, memorySpace)
+
+
+def subprocessInit(dumpFile, useNewEngine, doSuppressErrors):
+	global memorySpace, in_str
+	global affectCache, instrCache
+	global newEngine, suppressErrors
+	newEngine = useNewEngine
+	suppressErrors = doSuppressErrors
+
+	affectCache = {}
+	instrCache = {}
+	print >>sys.stderr, "(pid=%d) Loading memory dump" % (os.getpid())
+	memorySpace = FossileStream(dumpFile)
+	in_str = bin_stream_file(memorySpace)
+import pprint
+def delegator(traceFile, dumpFile, newEngine, suppressErrors, db):
+	fp = open(traceFile)
+
+	cpus = multiprocessing.cpu_count()
+	print >>sys.stderr, "Delegating to %d processors" % (cpus)
+	p = multiprocessing.Pool(cpus, subprocessInit, [dumpFile, newEngine, suppressErrors])
+	t = 0
+	while True:
+		lines = fp.readlines(1024*1024)
+		if len(lines) == 0: break
+		
+		#Perform the hard lifting in a multi-core fashion
+		results = p.map(processLine, lines)
+	
+		#Write results in this thread (not 100% optimal)
+		for curRecord in results:
+			if curRecord is not None:
+				db.Put("instr_%d" % t, json.dumps(curRecord))
+				changes = curRecord['changes']
+				for key in changes.keys():
+					if isinstance(key, int):
+						addToList(db, "write_%s" % str(key), str(t))
+				
+			t += 1		
+
+	db.Put("maxTime", str(t - 1))
+	
+
+def process(traceFile, dumpFile):
 	print >>sys.stderr, "Using old engine"
-	init()
 	db = leveldb.LevelDB("./db/%s_oldEngine" % saveName)
-	dumpToDb(changeMatrixIterator(t.iterate(), t, in_str, newEngine = False), db)
+	delegator(traceFile, dumpFile, False, False,  db = db)
 	print >>sys.stderr, "Using new engine"
-	init()
 	newDb = leveldb.LevelDB("./db/%s_newEngine" % saveName)
-	dumpToDb(changeMatrixIterator(t.iterate(), t, in_str, newEngine = True, suppressErrors = True), newDb)
+	delegator(traceFile, dumpFile, True,  True, newDb)
 
 
 if __name__ == '__main__':
@@ -93,5 +158,5 @@ if __name__ == '__main__':
 	saveName = sys.argv[3]
 	traceFile = sys.argv[1]
 	dumpFile = sys.argv[2]
-	process()
+	process(traceFile, dumpFile)
 	

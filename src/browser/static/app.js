@@ -41,8 +41,8 @@ function refreshInstructions(time){
 	})
 
 }
-//var lastMemAddr = 0x404050;
-var lastMemAddr = 2771222;
+var lastMemAddr = 0x404050;
+//var lastMemAddr = 2771222;
 function memClickIn(address, time){
 	refreshGraph(address,time);
 
