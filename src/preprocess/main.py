@@ -117,27 +117,42 @@ import pprint
 def delegator(traceFile, dumpFile, newEngine, suppressErrors, db):
 	fp = open(traceFile)
 
-	cpus = multiprocessing.cpu_count()
+	cpus = multiprocessing.cpu_count() - 1
 	print >>sys.stderr, "Delegating to %d processors" % (cpus)
 	p = multiprocessing.Pool(cpus, subprocessInit, [dumpFile, newEngine, suppressErrors])
 	t = 0
+	lastTime = -1
+	lastVal = -1
+
+	prevResult = None
+
 	while True:
+
+		if lastTime != -1:
+
+			print >>sys.stderr, t, (1.0*(t-lastVal))/(systemtime()-lastTime), "per second"
+		lastTime = systemtime()
+		lastVal = t
 		lines = fp.readlines(1024*1024)
 		if len(lines) == 0: break
 		
 		#Perform the hard lifting in a multi-core fashion
-		results = p.map(processLine, lines)
-	
-		#Write results in this thread (not 100% optimal)
-		for curRecord in results:
-			if curRecord is not None:
-				db.Put("instr_%d" % t, json.dumps(curRecord))
-				changes = curRecord['changes']
-				for key in changes.keys():
-					if isinstance(key, int):
-						addToList(db, "write_%s" % str(key), str(t))
-				
-			t += 1		
+		result = p.map_async(processLine, lines)
+		if prevResult is not None:
+			results = prevResult.get()
+			#Write results in this thread (not 100% optimal)
+			for curRecord in results:
+				if curRecord is not None:
+					db.Put("instr_%d" % t, json.dumps(curRecord))
+					changes = curRecord['changes']
+					for key in changes.keys():
+						if isinstance(key, int):
+							addToList(db, "write_%s" % str(key), str(t))
+					
+				t += 1		
+		prevResult = result
+
+
 
 	db.Put("maxTime", str(t - 1))
 	
