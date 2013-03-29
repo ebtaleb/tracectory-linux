@@ -1,0 +1,86 @@
+<!doctype html>
+ 
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tracelyzer</title>
+  <link rel="stylesheet" href="lib/themes/base/jquery-ui.css" />
+  <script src="lib/jquery-1.9.1.js"></script>
+  <script src="lib/ui/jquery-ui.js"></script>
+	<script src="http://view.jqueryui.com/menubar/ui/jquery.ui.menubar.js"></script>
+  <script src="viz.js"></script>
+  <script src="app.js"></script>
+  <link rel="stylesheet" href="http://view.jqueryui.com/menubar/themes/base/jquery.ui.all.css" />
+  <style>
+  #memView { width: 450px; height: 130px; padding: 0.5em; float: left; }
+  #graphView { width: 150px; height: 150px; padding: 0.5em; float: left; }
+  #timeslider { margin: 10px; }
+  #hexView {font-family: monospace; float: left; }
+  #asciiView {font-family: monospace; float: left;}
+  </style>
+</head>
+<body>
+
+<div style="margin-bottom: 10px;">
+<ul id="menu" class="menubar">
+	<li><a href="#">File</a>
+		<ul>
+		
+			<li>
+				<a href="#">Open trace</a>
+				<ul>
+					<li id="load_t206" class="classy"><a href="#">t206</a></li>
+					<li id="load_memcrypt"><a href="#">memcrypt</a></li>
+				</ul>
+
+			</li>
+		</ul>
+	</li>
+</ul>
+</div>
+
+<div style="clear:both; top: 80%">
+
+
+<div id="timeView" class="ui-widget-content" >
+<div class="ui-widget-header">Global time control</div>
+
+<button id="timeJump">Jump to time</button>
+<div id="timeslider"></div> 
+ </div>
+</div>
+
+<div id="memView" class="ui-widget-content" >
+<div class="ui-widget-header">Memory view (values written)</div>
+<div id="hexView" style="float:left;"></div>
+<div id="asciiView" style="float:left;"></div>
+</div>
+
+<div id="graphView" class="ui-widget-content" >
+
+<div class="ui-widget-header">Graph view</div>
+<div id="graph" ></div>
+</div>
+
+
+<div style="clear: both"></div>
+
+
+<div id="instrView" class="ui-widget-content">
+<div class="ui-widget-header">Instructions</div>
+<div id="instrContents"></div>
+</div>
+
+<div id="jumpToForm" title="Jump to a point in time">
+	<form>
+	<fieldset>
+	<label for="txtTargetTime">Time</label>
+	<input type="text" name="txtTargetTime" id="txtTargetTime"></input>
+	</fieldset>
+	</form>
+</div>
+
+
+
+</body>
+</html>
