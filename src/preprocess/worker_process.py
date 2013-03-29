@@ -126,8 +126,12 @@ def main():
 			if curTime == -1:
 				sendResult.send_json((curTime, curLine))
 			else:
-				record = processLine(curLine)
-				sendResult.send_json((curTime, record))
+				try:
+					record = processLine(curLine)
+					sendResult.send_json((curTime, record))
+				except:
+					print "ERROR",curTime
+
 			
 
 if __name__ == '__main__':
