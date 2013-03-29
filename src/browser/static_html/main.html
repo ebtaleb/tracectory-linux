@@ -23,7 +23,7 @@
   #instrContents {float: left; font-family:monospace; font-size: 8pt; }
   #cpuState {float: left; font-family:monospace; font-size: 8pt; }
   #cpuState2 {float: left; font-family:monospace; font-size: 8pt; }
-  .description { font-size: 8pt; }
+  .description { font-size: 10pt; }
   </style>
 </head>
 <body>
@@ -63,27 +63,37 @@
 
 <div id="accordion">
 
-<h3>CPU view</h3>
+<h3>CPU view: Instructions and CPU state</h3>
 <div id="instrView" class="ui-widget-content">
+	<p class="description">This view shows the most recently executed instructions and a couple of instructions executed before it. On the right two database dumps are shown from different versions of the engine. The engine uses notation tttt/iiiiiiiii, where tttt = timestamp and iiiii = address of instruction.
 	<div>
 	<textarea id="instrContents" rows="30" cols="40"></textarea>
 	<textarea id="cpuState" rows="30" cols="40"></textarea>
 	<textarea id="cpuState2" rows="30" cols="40"></textarea>
 	</div>
 </div>
+<h3>Memory overview: Show direct memory accesses</h3>
+<div id="rwGraph" class="ui-widget-content">
+	<p class="description">
+		This view is used to graph all memory reads and writes
+		in a given memory range. Only direct accesses are graphed.<br/>
+		Complexity: O(n log m + n log n + C), where n = number of memory locations; m = maximum memory oprerations to a single location;  C = number of items in graph
+	</p>
+	<button id="btnRW">Draw</button>
+	<div id="rwGraphCanvas"></div>
+</div>
 
-<h3>Taint graph (file format/structure RE)</h3>
+<h3>Taint graph: (file format/structure RE)</h3>
 <div id="readGraph" class="ui-widget-content">
 	<button id="btnForwardTaint">Draw</button>
 	<div id="readGraphCanvas"></div>
 </div>
 
-<h3>Dataflow graph</h3>
+<h3>Dataflow graph: Where does this value originate from? (use by clicking a hex value in the memory view)</h3>
 <div id="graphView" class="ui-widget-content"  >
 	<div style="width:900px;clear:both;"></div>
 	<div id="graph" style="width: 100%; height: 400px;"></div>
 </div>
-
 
 </div>
 <!-- Dialogs -->

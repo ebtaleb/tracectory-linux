@@ -9,8 +9,8 @@ from MemoryHistory import *
 
 
 traces = {
-	't206'     : TargetTrace("t206"),
-	'memcrypt' : TargetTrace("qkq"),
+	't206'     : TargetTrace("t206_timed"),
+	'memcrypt' : TargetTrace("memcrypt"),
 	'formatstring' : TargetTrace("formatstring"),
 }
 
@@ -85,7 +85,7 @@ class GuiServer(object):
 		with lock:
 			startTime = systemtime()
 			df = BackwardDataFlow(t)
-			root = df.follow(address, time)
+			root = df.follow(address, time, 300)
 			nodes, edges = root.dump()
 			endTime = systemtime()
 
@@ -121,9 +121,18 @@ class GuiServer(object):
 			result['graph'] = analyzer.toGraph(res)
 			result['data'] = [mh.get(x, time) for x in xrange(address,address+dataLen)]
 		return json.dumps(result, indent = 4)
-	def dbg(self):
-		return None
+	def dbg(self, address):
+		target = cherrypy.session['trace']
+#		address = int(address)
+#		time = int(time)
+		with lock:
+			mh = MemoryHistory(target)
+			#evts = mh.listMemoryEvents(range(0x404050,0x404050 + 16), 0, 1000)
+			evts = mh.listMemoryEvents(range(0x2a48e0, 0x2a4900 + 16*4), 0, 60000)
+		return json.dumps(evts, indent = 4)
+	
 
+	dbg.exposed = True
 	index.exposed = True
 	getMemJson.exposed = True
 	getInfo.exposed = True

@@ -60,7 +60,7 @@ $.getJSON("/getMemJson", params).done(
 			}
 			hexed = byteToHex(bytes[i]);
 			style = "";
-			if(times[i] == mostRecentTime){
+			if(times[i] == mostRecentTime && mostRecentTime>=0){
 				hexData +="<font color=\"red\">";
 				asciiData +="<u>";
 				style = "color: #f00; font-weight: bold;";
@@ -139,6 +139,7 @@ function initSlider(){
 
 
 function memClick(address, time){
+	if(time == -1) return;
 	refreshGraph(address, time);
 	$("#timeslider").slider("value",time);
 }
@@ -147,7 +148,7 @@ function refreshGraph(address, time){
 	var params =  {'time' : time, 'address': address};
 	$.getJSON("/dataflow", params).done(
 	 function(data){
-		$("#accordion").accordion( { active: 2});
+		$("#accordion").accordion( { active: 3});
 		var svg = Viz(data['graph'], "svg");
 		svg = svg.replace(new RegExp("width=\".*\"","gm"),"width=\"100%\"");
 		$("#graph").html(svg);
@@ -289,7 +290,34 @@ function drawReadGraph(address, time){
 );
 	}
 
+var rwPaper = null;
+function drawRWGraph(){
+	$.getJSON("/dbg", {'address' : -1 }).done(
+	function(response){
+		var events = response;
+		var paper;
+		width = events.length * 10 + 5;
+		height = events.length * 3 + 5;
+		if(rwPaper != null) {paper = rwPaper; }
+		else{
+			paper = new Raphael(document.getElementById("rwGraphCanvas"), width, height);
+			rwPaper = paper;
+		}
 
+
+		for(y=0;y<events.length;y++){
+			for(i = 0; i < events[y][1].length; i++){
+				x = events[y][1][i][0] - 0x2a48e0;
+				type = events[y][1][i][1];
+				paper.rect(x * 10, y * 3, 10 , 3).attr(
+					{"fill" : (type == "W") ? "#f00" : "#eee"}
+				);
+			}
+		}
+	}
+	);
+	
+}
 
 $ (function() {
 	
@@ -307,6 +335,15 @@ $ (function() {
 			$("#dlgForwardTaint").dialog("open");
 			event.preventDefault();
 		}
+	);
+
+	$("#btnRW").button().click(
+		function(event){
+			//$("#dlgForwardTaint").dialog("open");
+			drawRWGraph();
+			event.preventDefault();
+		}
+
 	);
 
 	setTimeout(init, 300);

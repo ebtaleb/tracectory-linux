@@ -1,5 +1,6 @@
 from datastore.DataFlow import *
 from taint import *
+from collections import defaultdict
 
 class MemoryHistory:
 	def __init__(self, target):
@@ -20,7 +21,7 @@ class MemoryHistory:
 	############# List functions ##########
 	def binSearch(self, listName, value):
 		#Binary search, logarithmic time
-		""" Returns smallest x such that list[x]<=value """
+		""" Returns largest x such that list[x]<=value """
 		lower = 0
 		try: upper = int(self.oldDB.Get("%s_ctr" % listName)) - 1
 		except KeyError: return None
@@ -78,7 +79,7 @@ class MemoryHistory:
 		if readAt is None: return None
 		value = self.getByteReadAt(address, readAt)
 		if value is not None:
-			return value, readAt
+			return value, -1
 		
 	def getByteWrittenAt(self, address, writtenAt):
 		curTime, eip, instr, changeMatrix = self.newDF.getAt(writtenAt)
@@ -122,8 +123,38 @@ class MemoryHistory:
 		return -1
 			
 				
+	def getValuesInRange(self, listName, minVal, maxVal):
+		lower = self.binSearch(listName, minVal)
+		if lower is None: return []
+		lower += 1
+		count = self.__listCount(listName)
 
+		if lower >= count: return []
+		upper = self.binSearch(listName, maxVal)
+		if upper is None:
+			#Upper not found but lower found -> upper = max
+			upper = count - 1
+		
+		result = []
+		for i in xrange(lower,upper+1):
+			result.append(self.__getListInt(listName, i))
+		return result
+	def listMemoryEvents(self, byteArray, startTime, endTime):
+		eventsByTime = defaultdict(list)
+		for curAddr in byteArray:
+			l = "read_%d" % curAddr
+			for curTime in  self.getValuesInRange(l, startTime, endTime):
+				eventsByTime[curTime].append( (curAddr, "R"))
 
+			l = "write_%d" % curAddr
+			for curTime in  self.getValuesInRange(l, startTime, endTime):
+				eventsByTime[curTime].append( (curAddr, "W"))
+		keys = eventsByTime.keys()
+		result = []
+		for curTime in sorted(keys):
+			result.append( (curTime, eventsByTime[curTime] ))
+		return result
+			
 
 
 
