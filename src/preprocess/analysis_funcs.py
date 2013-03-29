@@ -81,6 +81,8 @@ def calcUnikeyRelations(affects, regs, debug = False):
 	# value at this unikey.
 	result = defaultdict(set)
 	for a in affects:
+		if isinstance(a.src, ExprOp) and a.src.op == "^": # this tries to fix xor eax,eax to cut the chain
+			a.src = expr_simp(a.src)
 		readStuff = getRead(a)
 		writtenStuff = getWritten(a)
 		for w in writtenStuff:

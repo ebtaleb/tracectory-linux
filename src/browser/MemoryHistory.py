@@ -59,6 +59,8 @@ class MemoryHistory:
 						source = str(source).strip()
 						regName = source[:source.find("_")]
 						index = int(source[source.find("_")+1:])
+						if regName == "const":
+							return index, curTime
 						fullVal = self.newDF.regs[regName.upper()]
 						return ((fullVal>>index) & 0xff), curTime
 					else:

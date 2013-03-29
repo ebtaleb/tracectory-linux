@@ -92,7 +92,7 @@ def getDataSource(sourceObject, regs, byteNum):
 		num = sourceObject.arg & 0xffffffffffffffff
 		bytes =  []
 		for i in xrange(0,sourceObject.get_size(),8):
-			bytes.append((num>>i)&0xff)
+			bytes.append("const_%d" % ((num>>i)&0xff))
 #	elif isinstance(sourceObject, ExprOp):
 #		res = []
 #		for arg in sourceObject.args:
