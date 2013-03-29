@@ -9,6 +9,7 @@
   <script src="lib/ui/jquery-ui.js"></script>
 	<script src="http://view.jqueryui.com/menubar/ui/jquery.ui.menubar.js"></script>
   <script src="viz.js"></script>
+  <script src="raphael-min.js"></script>
   <script src="app.js"></script>
   <link rel="stylesheet" href="http://view.jqueryui.com/menubar/themes/base/jquery.ui.all.css" />
   <style>
@@ -17,6 +18,10 @@
   #timeslider { margin: 10px; }
   #hexView {font-family: monospace; float: left; }
   #asciiView {font-family: monospace; float: left;}
+  #instrContents {float: left; font-family:monospace; font-size: 8pt; }
+  #cpuState {float: left; font-family:monospace; font-size: 8pt; }
+  #cpuState2 {float: left; font-family:monospace; font-size: 8pt; }
+
   </style>
 </head>
 <body>
@@ -31,6 +36,7 @@
 				<ul>
 					<li id="load_t206" class="classy"><a href="#">t206</a></li>
 					<li id="load_memcrypt"><a href="#">memcrypt</a></li>
+					<li id="load_formatstring"><a href="#">format string parser</a></li>
 				</ul>
 
 			</li>
@@ -50,27 +56,32 @@
  </div>
 </div>
 
-<div id="memView" class="ui-widget-content" >
-<div class="ui-widget-header">Memory view (values written)</div>
-<div id="hexView" style="float:left;"></div>
-<div id="asciiView" style="float:left;"></div>
-</div>
-
-<div id="graphView" class="ui-widget-content" >
-
-<div class="ui-widget-header">Graph view</div>
-<div id="graph" ></div>
-</div>
-
 
 <div style="clear: both"></div>
 
+<div id="accordion">
 
+<h3>CPU view</h3>
 <div id="instrView" class="ui-widget-content">
-<div class="ui-widget-header">Instructions</div>
-<div id="instrContents"></div>
+	<div>
+	<textarea id="instrContents" rows="30" cols="40"></textarea>
+	<textarea id="cpuState" rows="30" cols="40"></textarea>
+	<textarea id="cpuState2" rows="30" cols="40"></textarea>
+	</div>
 </div>
 
+<h3>Data access graph</h3>
+<div id="readGraph" class="ui-widget-content">
+	<div id="readGraphCanvas"></div>
+</div>
+
+<h3>Dataflow graph</h3>
+<div id="graphView" class="ui-widget-content" >
+	<div id="graph" style="width:100%;height:300px;"></div>
+</div>
+
+
+</div>
 <div id="jumpToForm" title="Jump to a point in time">
 	<form>
 	<fieldset>
@@ -78,6 +89,12 @@
 	<input type="text" name="txtTargetTime" id="txtTargetTime"></input>
 	</fieldset>
 	</form>
+</div>
+
+<div id="memView" class="ui-widget-content" >
+<div class="ui-widget-header">Memory view (values written)</div>
+<div id="hexView" style="float:left;"></div>
+<div id="asciiView" style="float:left;"></div>
 </div>
 
 

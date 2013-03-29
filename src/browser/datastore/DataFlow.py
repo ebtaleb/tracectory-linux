@@ -36,4 +36,9 @@ class DataFlow:
 			if result is not None:
 				yield result
 			self.time += delta
+	def dumpState(self):
+		try:
+			return self.db.Get("instr_%d" % self.time)
+		except KeyError:
+			return "{}"
 

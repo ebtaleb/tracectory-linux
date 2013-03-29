@@ -1,7 +1,4 @@
-/*
- * This file is provided for custom JavaScript logic that your HTML files might need.
- * Maqetta includes this JavaScript file by default within HTML pages authored in Maqetta.
- */
+// Main GUI logic is here
 
 
 function htmlEntities(str) {
@@ -89,9 +86,12 @@ function refreshInstructions(time){
 			for(var i = 0; i < instrs.length;i++){
 				line = instrs[i];
 				output += (line[0]) + "/" + formatDword(line[1]) + " " + line[2];
-				output += "<br/>";
+				//output += "<br/>";
+				output += "\n";
 			}	
 			$("#instrContents").html(output);
+			$("#cpuState").text(data['dump']);
+			$("#cpuState2").text(data['dump2']);
 		}
 
 	);
@@ -197,8 +197,35 @@ function select(event, ui){
 	}
 }
 
-function init(){
 
+var readGraphPaper;
+function initReadGraph(){
+
+	width = 1000;
+	byteCount = 70;
+	var paper = new Raphael(document.getElementById("readGraphCanvas"), width, 400);
+	readGraphPaper = paper;
+	
+	perByteX = Math.floor(width/byteCount);
+	perByteY = 5;
+	$.getJSON("/forwardTaint", {}).done(
+	function(data){
+		for(var y=0;y<data.length;y++){
+			for(var j=0;j<data[y][0].length;j++){
+				var loc = data[y][0][j];
+				console.log(loc);
+				paper.rect(loc*perByteX, y*perByteY, perByteX,perByteY).attr(
+					{"fill" : data[y][1], "stroke" : data[y][1]}	
+				);
+			}
+		}
+
+	}
+);
+	}
+
+function init(){
+	initReadGraph();
 	refreshMemory(lastMemAddr, 0);
 }
 
@@ -206,10 +233,11 @@ $ (function() {
 	
 	$("#menu").menubar( { select: select } );
 	initMenu();
-	$( "#graphView" ).draggable().resizable({});
-	$("#graphView").scroll();
-	$( "#memView").resizable();
-	$( "#instrView").draggable().resizable();
+	//$( "#graphView" ).draggable().resizable({});
+	//$("#graphView").scroll();
+	//$( "#memView").resizable();
+	//$( "#instrView").draggable().resizable();
+	$("#accordion").accordion();
 	initSlider();
 
 	setTimeout(init, 300);

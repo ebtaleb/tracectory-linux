@@ -10,7 +10,8 @@ from MemoryHistory import *
 
 traces = {
 	't206'     : TargetTrace("t206"),
-	'memcrypt' : TargetTrace("qkq")
+	'memcrypt' : TargetTrace("qkq"),
+	'formatstring' : TargetTrace("formatstring"),
 }
 
 traces['memcrypt'].memDumpAddr = 0x404050;
@@ -63,8 +64,18 @@ class GuiServer(object):
 
 			for data in t.iterate():
 				curTime, eip, instr, changeMatrix = data
-				result['disasm'].append((curTime, eip, str(instr)))
+				cleanAsm = instr
+				while "  " in cleanAsm:
+					cleanAsm = cleanAsm.replace("  "," ")
+				result['disasm'].append((curTime, eip, cleanAsm))
 				if data[0] == time: break
+			t.seek(time)
+			newT = target.getDataflowTracer(new=True)
+			newT.seek(time)
+			dump = json.dumps(json.loads(t.dumpState()), indent=4)
+			dump2 = json.dumps(json.loads(newT.dumpState()), indent=4)
+		result['dump'] = "%s" % dump
+		result['dump2'] = "%s" % dump2
 		return json.dumps(result)
 	def dataflow(self, time, address):
 		address = int(address)
@@ -93,12 +104,23 @@ class GuiServer(object):
 
 		return json.dumps( {'status' : 'ok' } )
 
+	def forwardTaint(self):
+
+		target = cherrypy.session['trace']
+		t = target.getDataflowTracer()
+		analyzer = ForwardTaintAnalyzer()
+		analyzer.mark(0x403064, 0, 3*16 + 1)
+		res = analyzer.analyze(t)
+		res = analyzer.toGraph(res)
+		return json.dumps(res, indent = 4)
+
 	index.exposed = True
 	getMemJson.exposed = True
 	getInfo.exposed = True
 	getInstructions.exposed = True
 	dataflow.exposed = True
 	loadTrace.exposed = True
+	forwardTaint.exposed = True
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 conf = {'/static': {'tools.staticdir.on': True,

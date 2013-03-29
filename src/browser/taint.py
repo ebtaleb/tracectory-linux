@@ -2,72 +2,8 @@ import sys
 #from traceparser import *
 import copy
 import unittest
-
-class BackTrace:
-	"""Enables us to trace back in time"""
-	def __init__(self, origTrace, cacheSize = 10000):
-		self.trace = origTrace
-		self.cacheSize = cacheSize
-		self.cacheStartTime = 9999999999
-		self.time = 1
-		self.seek(0)
-	def seek(self, time):
-		cacheStartTime = max(0, time - self.cacheSize)
-		self.cacheStartTime = cacheStartTime
-		self.trace.seek(cacheStartTime)
-		curTime = cacheStartTime
-		iter = self.trace.iterate()
-		self.cache = defaultdict(None)
-		cache = self.cache
-
-		while curTime <= time:
-			curTime, eip = iter.next()
-			regs = copy.deepcopy(self.trace.regs)
-			cache[curTime] = (curTime, eip, regs)
-		self.time = time
-	def iterate(self):
-		#print >>sys.stderr, "In BackTrace time:",self.time
-		while self.time>=0:
-			t = self.time
-			cache = self.cache
-
-			if self.cache.has_key(t) == False:
-				self.time -= 1
-				continue
-
-			self.regs = cache[t][2]
-			yield cache[t][0], cache[t][1]
-			self.time -= 1
-			if self.time<=self.cacheStartTime:
-				self.seek(self.time)
-
-		if self.time<0: self.time =0
-
-class TestBackTrace(unittest.TestCase):
-	def setUp(self):
-		self.t = Trace("ex3\\trace.txt")
-		self.memorySpace = FossileStream("ex3/dump")
-		for temp in self.t.iterate(indexing=True):
-			pass
-		self.t.seek(0)
-	def test1(self):
-
-		forward = []
-		backward = []
-		iter = self.t.iterate()
-		for i in xrange(10):
-			forward.append(iter.next())
-
-		backTrace = BackTrace(self.t, cacheSize = 2)
-		backTrace.seek(9)	
-
-		iter = backTrace.iterate()
-		for i in xrange(10):
-			backward.append(iter.next())
-		for i in xrange(10):
-			self.assertEqual(forward[i], backward[9 - i])
-
-
+from md5 import md5
+import struct
 
 class Entry:
 	def __init__(self, name, parents = [], disasm = None):
@@ -97,32 +33,34 @@ class ForwardTaintAnalyzer:
 	"""This is used to trace the usage of certain values (such as file contents)
 	   during the traced time"""
 	def __init__(self):
-		self.javascriptFile = open("data.js","w")
-		self.javascriptFile.write("var events = [\n")
 		self.taintDict = {}
 
 	def mark(self, memStart, fileStart, size):
 		"""This maps the memory location from [memStart, memStart + size) 
 		to [fileStart, fileStart + size)"""
 		for i in xrange(size):
-			self.taintDict[memStart + i] = "byte_%d" % (fileStart + i)
+			self.taintDict[str(memStart + i)] = (fileStart + i)
 
-	def generateEvent(self,origins, address, instruction):
+	def generateEvent(self,origins, curTime, eip):
 		decOrigins = []
 		for origin in origins:
-			decOrigins.append(origin[5:]) #XXX: Hideous hack, use proper data structures
+			decOrigins.append(origin) 
 		decOrigins.sort()
-		self.javascriptFile.write("[ [%s], %d, '%s' ],\n" % (", ".join(decOrigins), address, str(instruction).replace("'","\\'")))
-	def analyze(self, t, in_str):
+		self.results.append( (decOrigins, curTime, eip))
+	def analyze(self, t, MAX_STEPS = 10000):
 		taintDict = self.taintDict
-		for entry in changeMatrixIterator(t.iterate(), in_str):
+		self.results = []
+		t.seek(0)
+		count = 0
+		for entry in t.iterate():
+			if count > MAX_STEPS: break
 			curTime, eip, instr, changeMatrix = entry
-
+			count += 1
 			#Before: Read taintDict to see the taint values of the locations that affected
 			#the current instruction (by iterating through round 1)
 			round2 = {}
 			for key,val in changeMatrix.items():
-				sources = [taintDict[x] for x in val if taintDict.has_key(x)]
+				sources = [taintDict[str(x)] for x in val if taintDict.has_key(x) or taintDict.has_key(str(x))]
 				if len(sources):
 					round2[key] = Entry("Instruction %08X" % eip, sources, str(instr)) 
 				else:
@@ -134,8 +72,8 @@ class ForwardTaintAnalyzer:
 				origins = set()
 				for curSource in roundSet:
 					origins |= curSource.listOrigins()
-				self.generateEvent(origins, eip, instr)
-				print origins,"read by %08X" % eip
+				self.generateEvent(origins, curTime, eip)
+				#print origins,"read by %08X" % eip
 			
 			# After: Commit results of this instruction to taintDict
 			# Note that we cannot do this in the previous loop as the contents of
@@ -147,12 +85,29 @@ class ForwardTaintAnalyzer:
 						del taintDict[key]
 				else:
 					taintDict[key] = val
-		self.javascriptFile.write("[-1]];\n")
-		self.javascriptFile.write("var data = [\n")
-		self.javascriptFile.write(", ". join( [hex(ord(memorySpace[BLOCK_START+i])) for i in range(BLOCK_LEN) ]))
-		self.javascriptFile.write(" ];\n")
-		self.javascriptFile.close()
+		return self.results
+	def toGraph(self, data):
+		#Foramt of packed data: [ set(bytes), PC values ]
+		packedData = []
 
+		for entry in data:
+			curBytes = set(entry[0])
+			if len(packedData)>0 and curBytes == packedData[-1][0]:
+				packedData[-1][1].append(entry[2])
+			else:
+				packedData.append( [curBytes, [entry[2]]])
+		result = []
+		for entry in packedData:
+			locations =list(sorted(list(entry[0])))
+			instrLocs = list(sorted(entry[1]))
+			color = md5("".join([hex(x) for x in instrLocs])).digest()
+			color = struct.unpack("<L", color[:3]+ "\x00")
+			result.append( (locations, "#%06X" % color))
+			
+		return result
+		
+
+	
 class BackLink:
 	def __init__(self, time, eip, instr):
 		self.time = time
