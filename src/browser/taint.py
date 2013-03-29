@@ -50,7 +50,6 @@ class ForwardTaintAnalyzer:
 	def analyze(self, t, MAX_STEPS = 10000):
 		taintDict = self.taintDict
 		self.results = []
-		t.seek(0)
 		count = 0
 		for entry in t.iterate():
 			if count > MAX_STEPS: break
@@ -102,7 +101,7 @@ class ForwardTaintAnalyzer:
 			instrLocs = list(sorted(entry[1]))
 			color = md5("".join([hex(x) for x in instrLocs])).digest()
 			color = struct.unpack("<L", color[:3]+ "\x00")
-			result.append( (locations, "#%06X" % color))
+			result.append( (locations, "#%06X" % color, instrLocs))
 			
 		return result
 		

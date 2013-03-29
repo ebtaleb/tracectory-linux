@@ -55,6 +55,7 @@ def processAffect(object):
 					assert arg.stop % 8 == 0
 					for curBit in xrange(arg.start, arg.stop, 8):
 						target = ExprId(dest.name + "_%d" % curBit)
+						target.size = 8
 						resultingAffects.append(ExprAff(target, arg.arg))
 		else:
 			for curBit in xrange(0,32,8):
@@ -106,11 +107,10 @@ def getDataSource(sourceObject, regs, byteNum):
 
 		bytes = [(addrExpr.arg + i) for i in xrange(size)]	
 	else:
-		print sourceObject.__class__
+		#print sourceObject.__class__
 		raise ValueError, sourceObject.__class__
 	return [bytes[byteNum]]
 
-#XXX: What about if ExprSlice here
 def listUnikeys(sourceObject, regs):
 	if isinstance(sourceObject, ExprMem):
 		res = []
@@ -121,10 +121,16 @@ def listUnikeys(sourceObject, regs):
 
 		return [(addrExpr.arg + i) for i in xrange(size)]
 	elif isinstance(sourceObject, ExprId):
+		if "_" in sourceObject.name:
+			assert sourceObject.size == 8
+			return [sourceObject.name]
 		#XXX: Should we bit- or byteindex
 		size = sourceObject.size/8 
 		return ["%s_%d" % (sourceObject.name,i*8) for i in xrange(size)]
-	print sourceObject, sourceObject.__class__
+	elif isinstance(sourceObject, ExprSlice):
+		sliceBytes = getSliceBytes(sourceObject, regs)
+		return sliceBytes
+	#print sourceObject, sourceObject.__class__
 	raise ValueError
 
 

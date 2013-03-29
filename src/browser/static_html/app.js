@@ -16,7 +16,7 @@ function formatWord(d){
 }
 
 function formatChar(c){
-	if(c<30 || c>=120)
+	if(c<30 || c>=127)
 		return ".";
 	return String.fromCharCode(c);
 }
@@ -127,24 +127,6 @@ function initSlider(){
 
 	//The "jump to a certain time" form
 
-	$("#jumpToForm").dialog( { 
-		autoOpen: false, 
-		resizable : false,
-		open: function(){
-		    $("#jumpToForm").keypress(function(e) {
-		      if (e.keyCode == $.ui.keyCode.ENTER) {
-			updateSliderFromDialog();
-			return false;
-		      }
-		    });
-		},
-		buttons: {
-			"Jump" : updateSliderFromDialog,
-			"Close" : function() {
-				$(this).dialog("close");
-			}
-		}
-		} );
 	$("#timeJump").button().click(function(event){
 
 		var val = $("#timeslider").slider("value");
@@ -161,22 +143,14 @@ function memClick(address, time){
 	$("#timeslider").slider("value",time);
 }
 
-function fixSize(){
-	alert("fixd" + $("#graph").height());
-}
-
 function refreshGraph(address, time){
 	var params =  {'time' : time, 'address': address};
 	$.getJSON("/dataflow", params).done(
 	 function(data){
+		$("#accordion").accordion( { active: 2});
 		var svg = Viz(data['graph'], "svg");
 		svg = svg.replace(new RegExp("width=\".*\"","gm"),"width=\"100%\"");
-		svg = svg.replace(new RegExp("height=\".*\"","gm"),"height=\"100%\"");
-		//document.getElementByID("graphView").
 		$("#graph").html(svg);
-		$("#graphView").width($("#graph").width() + 100);
-		$("#graphView").height($("#graph").height());
-
 
 	});
 
@@ -200,30 +174,113 @@ function select(event, ui){
 			}
 		);
 	}
+	event.preventDefault();
 }
 
 
+function init(){
+	//initReadGraph();
+	$("#timeslider").slider("value",0);
+}
+
+function initDialogs(){
+	$("#jumpToForm").dialog( { 
+		autoOpen: false, 
+		resizable : false,
+		open: function(){
+		    $("#jumpToForm").keypress(function(e) {
+		      if (e.keyCode == $.ui.keyCode.ENTER) {
+			updateSliderFromDialog();
+			return false;
+		      }
+		    });
+		},
+		buttons: {
+			"Jump" : updateSliderFromDialog,
+			"Close" : function() {
+				$(this).dialog("close");
+			}
+		}
+		} );
+
+	$("#dlgSetMemAddr").dialog({
+		autoOpen: false,
+		buttons: {
+			"OK" : function(){
+				lastMemAddr = parseInt($("#txtMemAddr").val(),16);
+				refreshMemory(lastMemAddr, $("#timeslider").slider("value"));
+			},
+			"Close" : function() { 	$(this).dialog("close"); 	}
+
+		}
+	});
+	$("#btnSetAddr").click(function(){ $("#dlgSetMemAddr").dialog("open"); });
+	fwdTaintDlg();
+}
+
+
+// forward taint
+
+function fwdTaintOnClick(){
+	var address = $("#txtAddress").val();
+	var time = $("#txtTime").val();
+	drawReadGraph(parseInt(address,16), parseInt(time));
+
+}
+
+function fwdTaintDlg(){
+	$("#dlgForwardTaint").dialog({
+		autoOpen: false,
+		modal: true,
+		buttons: {
+			"Trace & draw" : fwdTaintOnClick,
+
+			"Close": function() { $(this).dialog("close"); }
+		}
+		
+	});
+
+}
+
 var readGraphPaper;
-function initReadGraph(){
+function drawReadGraph(address, time){
 
 	width = 1000;
 	byteCount = 70;
-	var paper = new Raphael(document.getElementById("readGraphCanvas"), width, 400);
-	readGraphPaper = paper;
+	var paper;
+	if(readGraphPaper != null){
+		paper = readGraphPaper;
+	}else{
+		paper = new Raphael(document.getElementById("readGraphCanvas"), width, 400);
+		readGraphPaper = paper;
+	}
 	
+	paper.clear();
 	perByteX = Math.floor(width/byteCount);
 	perByteY = 5;
+	fontSize = 10;
+	textStartOffset = (perByteX/2) - (fontSize/2);
 	for(var x=0;x<byteCount;x++){
-		paper.text(x*perByteX,10,(x), paper.getFont("Courier"),10).attr(
+		paper.text(x*perByteX + textStartOffset, 10, x, paper.getFont("Courier"),10).attr(
 				{"text-anchor": "start"});
 	}
-	$.getJSON("/forwardTaint", {}).done(
-	function(data){
-		for(var y=0;y<data.length;y++){
-			for(var j=0;j<data[y][0].length;j++){
-				var loc = data[y][0][j];
-				paper.rect(loc*perByteX, 25+y*perByteY, perByteX,perByteY).attr(
-					{"fill" : data[y][1], "stroke" : data[y][1]}	
+	var params = { 'address' : address, 'time' : time};
+	$.getJSON("/forwardTaint", params).done(
+	function(response){
+		graph = response['graph'];
+		dataBytes = response['data'];	
+		for(var x = 0; x < dataBytes.length; x++){
+			var c = String.fromCharCode(dataBytes[x]);
+			paper.text(x*perByteX + textStartOffset, 
+				   20, 
+				   c, paper.getFont("Courier"),10).attr(
+				{"text-anchor": "start"});
+		}
+		for(var y=0;y<graph.length;y++){
+			for(var j=0;j<graph[y][0].length;j++){
+				var loc = graph[y][0][j];
+				paper.rect(loc*perByteX, 35+y*perByteY, perByteX,perByteY).attr(
+					{"fill" : graph[y][1], "stroke" : graph[y][1]}	
 				);
 			}
 		}
@@ -232,21 +289,25 @@ function initReadGraph(){
 );
 	}
 
-function init(){
-	initReadGraph();
-	$("#timeslider").slider("value",0);
-}
+
 
 $ (function() {
 	
-	//$("#menu").menubar( { select: select } );
+	$("#menu").menubar( { select: select } );
 	initMenu();
 	//$( "#graphView" ).draggable().resizable({});
 	//$("#graphView").scroll();
 	//$( "#memView").resizable();
 	//$( "#instrView").draggable().resizable();
 	$("#accordion").accordion();
+	initDialogs();
 	initSlider();
+	$("#btnForwardTaint").button().click(
+		function(event){
+			$("#dlgForwardTaint").dialog("open");
+			event.preventDefault();
+		}
+	);
 
 	setTimeout(init, 300);
 });

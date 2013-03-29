@@ -19,20 +19,20 @@ class DataFlow:
 	def seek(self, time):
 		self.time = time
 		#print "Seeking to %d" % time	
-	def getCur(self):
+	def getAt(self, time):
 		try:
 			#print "looking up '%s' " % str(self.time)
-			recordStr = self.db.Get("instr_%d" % self.time)
+			recordStr = self.db.Get("instr_%d" % time)
 		except KeyError:
 			#print "Did not find '%s'" % str(self.time)
 			return None
 		record = json.loads(recordStr) 
 		#time, eip, instr, changeMatrix
 		self.regs = record['regs']
-		return (self.time, record['PC'], record['disassembly'], record['changes'])
+		return (time, record['PC'], record['disassembly'], record['changes'])
 	def iterate(self, delta = 1):
 		while self.time>=0 and self.time<=self.maxTime:
-			result = self.getCur()
+			result = self.getAt(self.time)
 			if result is not None:
 				yield result
 			self.time += delta

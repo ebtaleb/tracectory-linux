@@ -89,7 +89,7 @@ class GuiServer(object):
 			nodes, edges = root.dump()
 			endTime = systemtime()
 
-		graph = "digraph G {\n" #size = \"10,20 \"\n"
+		graph = "digraph G {\n"
 		graph += "/* Took %f seconds */\n" % (endTime-startTime)
 		#XXX: We're cheating by using set here, should move into proper engine
 		for e in set(edges):
@@ -104,15 +104,25 @@ class GuiServer(object):
 
 		return json.dumps( {'status' : 'ok' } )
 
-	def forwardTaint(self):
-
+	def forwardTaint(self, address, time):
 		target = cherrypy.session['trace']
-		t = target.getDataflowTracer()
-		analyzer = ForwardTaintAnalyzer()
-		analyzer.mark(0x403064, 0, 3*16 + 1)
-		res = analyzer.analyze(t)
-		res = analyzer.toGraph(res)
-		return json.dumps(res, indent = 4)
+		address = int(address)
+		time = int(time)
+		result = {}
+		dataLen = 3*16 + 1
+		with lock:
+			t = target.getDataflowTracer()
+			mh = MemoryHistory(target)
+			analyzer = ForwardTaintAnalyzer()
+			#analyzer.mark(0x403064, 0, 3*16 + 1)
+			analyzer.mark(address, 0, dataLen)
+			t.seek(time)
+			res = analyzer.analyze(t)
+			result['graph'] = analyzer.toGraph(res)
+			result['data'] = [mh.get(x, time) for x in xrange(address,address+dataLen)]
+		return json.dumps(result, indent = 4)
+	def dbg(self):
+		return None
 
 	index.exposed = True
 	getMemJson.exposed = True

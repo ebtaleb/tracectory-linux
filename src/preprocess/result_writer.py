@@ -4,8 +4,7 @@ sys.path.append("./src")
 import os
 import leveldb
 from time import time as systemtime
-from analysis_funcs import *
-#saveName = "t206"
+#from analysis_funcs import *
 import multiprocessing
 import zmq
 import logging
@@ -20,17 +19,6 @@ except ImportError:
 
 
 context = zmq.Context()
-#def addToList(db, listName, value):
-#	"""Straghtforward implementation of random-access arrays atop a key-value store """
-#	count = 0
-#	try:
-#		count = int(db.Get("%s_ctr" % listName))
-#	except KeyError:
-#		pass
-#
-#	db.Put("%s_%d" % (listName,count), value)
-#	db.Put("%s_ctr" % listName, str(count + 1))
-
 listCounters = {}
 
 def addToList(batch, listName, value):
@@ -85,7 +73,6 @@ def main(db):
 	log.info("Received all info!")
 
 	#Write indexing of memory accesses
-	listOperations = 0
 	startTime = systemtime()
 
 	batch = leveldb.WriteBatch()
@@ -97,18 +84,20 @@ def main(db):
 
 		curRecord = json.loads(recordJson)
 		changes = curRecord['changes']
-		for key in changes.keys():
+		for key, values in changes.items():
 			if key.isdigit():
 				key = int(key)
 				addToList(batch, "write_%s" % str(key), str(t))
-				listOperations += 1
+			for v in values:
+				v = str(v)
+				if v.isdigit():
+					addToList(batch, "read_%s" % str(v), str(t))
 		if (t%100000) == 0: #Batch update sinto groups of 100k
 			db.Write(batch)
 			batch = leveldb.WriteBatch()
 	db.Write(batch)
 	writeListCounts(db)	
 	endTime = systemtime()
-	log.info("Analysis finished, %d operations" % listOperations)
 	log.info("%f per second" % (lastTime / (endTime-startTime)))
 	controlSender.send("FINISH")
 

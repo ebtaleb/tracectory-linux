@@ -5,23 +5,25 @@
   <meta charset="utf-8" />
   <title>Tracelyzer</title>
   <link rel="stylesheet" href="lib/themes/base/jquery-ui.css" />
+  <link rel="stylesheet" href="jquery.ui.menubar.css" />
   <script src="lib/jquery-1.9.1.js"></script>
   <script src="lib/ui/jquery-ui.js"></script>
-	<script src="http://view.jqueryui.com/menubar/ui/jquery.ui.menubar.js"></script>
+	<script src="jquery.ui.menubar.js"></script>
   <script src="viz.js"></script>
   <script src="raphael-min.js"></script>
+
   <script src="app.js"></script>
   <link rel="stylesheet" href="lib/themes/base/jquery.ui.all.css" />
   <style>
   #memView { width: 450px; height: 130px; padding: 0.5em; float: left; }
-  #graphView { width: 150px; height: 150px; padding: 0.5em; float: left; }
+  #graphView { height: 150px; padding: 0.5em; float: left; }
   #timeslider { margin: 10px; }
   #hexView {font-family: monospace; float: left; }
   #asciiView {font-family: monospace; float: left;}
   #instrContents {float: left; font-family:monospace; font-size: 8pt; }
   #cpuState {float: left; font-family:monospace; font-size: 8pt; }
   #cpuState2 {float: left; font-family:monospace; font-size: 8pt; }
-
+  .description { font-size: 8pt; }
   </style>
 </head>
 <body>
@@ -70,18 +72,21 @@
 	</div>
 </div>
 
-<h3>Data access graph</h3>
+<h3>Taint graph (file format/structure RE)</h3>
 <div id="readGraph" class="ui-widget-content">
+	<button id="btnForwardTaint">Draw</button>
 	<div id="readGraphCanvas"></div>
 </div>
 
 <h3>Dataflow graph</h3>
-<div id="graphView" class="ui-widget-content" >
-	<div id="graph" style="width: 100%; height:100%;"></div>
+<div id="graphView" class="ui-widget-content"  >
+	<div style="width:900px;clear:both;"></div>
+	<div id="graph" style="width: 100%; height: 400px;"></div>
 </div>
 
 
 </div>
+<!-- Dialogs -->
 <div id="jumpToForm" title="Jump to a point in time">
 	<form>
 	<fieldset>
@@ -91,12 +96,47 @@
 	</form>
 </div>
 
+<div id="dlgForwardTaint" title="Forward taint analysis">
+	<p class="description">
+	This features enables you to see a visualization of how the program
+	accesses a certain piece of data.
+	</p>
+	<form>
+	<fieldset>
+
+	<label for="txtAddress">Address (hex)</label>
+	<input type="text" name="txtAddress" id="txtAddress"></input>
+
+
+	<label for="txtTime">Start time of analysis</label>
+	<input type="text" name="txtTime" id="txtTime"></input>
+
+	</fieldset>
+	</form>
+</div>
+<div id="dlgSetMemAddr" title="Memory address">
+	<p class="description">
+		Set a memory address to monitor.
+</p>
+	<form>
+	<fieldset>
+
+	<label for="txtMemAddr">Address (hex)</label>
+	<input type="text" name="txtMemAddr" id="txtMemAddr"></input>
+
+
+	</fieldset>
+	</form>
+</div>
+<!-- /Dialogs -->
 
 <div style="clear: both"></div>
-<div id="memView" class="ui-widget-content" >
-<div class="ui-widget-header">Memory view (values written)</div>
-<div id="hexView" style="float:left;"></div>
-<div id="asciiView" style="float:left;"></div>
+	<div id="memView" class="ui-widget-content" >
+	<div class="ui-widget-header">Memory view (values written)</div>
+	<input type="button" id="btnSetAddr" value="Set address"/>
+	<div style="clear:both;"></div>
+	<div id="hexView" style="float:left;"></div>
+	<div id="asciiView" style="float:left;"></div>
 </div>
 
 
