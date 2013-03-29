@@ -1,25 +1,32 @@
 import cherrypy
 import os
-from traceparser import *
 import json
 from threading import Lock
 from time import time as systemtime
-import leveldb
-#t = Trace("binaries/ex3/trace.txt")
-#oldDB = leveldb.LevelDB("db/t206_oldEngine")
-#newDB = leveldb.LevelDB("db/t206_newEngine")
 
-oldDB = leveldb.LevelDB("db/dbg_memcrypt_oldEngine")
-newDB = leveldb.LevelDB("db/dbg_memcrypt_newEngine")
-t = DataFlow(oldDB)
+from session import TargetTrace
+from MemoryHistory import *
 
-mh = MemoryHistory(oldDB, newDB)
 
+traces = {
+	't206'     : TargetTrace("t206"),
+	'memcrypt' : TargetTrace("qkq")
+}
+
+traces['memcrypt'].memDumpAddr = 0x404050;
+traces['t206'].memDumpAddr = 2771222;
 
 lock = Lock()
 class GuiServer(object):
 	def index(self):
-		raise cherrypy.HTTPRedirect("static/file1.html")
+		raise cherrypy.HTTPRedirect("static/main.html")
+	def getInfo(self):
+		target = cherrypy.session['trace']
+		return json.dumps( { 
+
+		'maxTime' : target.getMaxTime(),
+		'memDumpAddr' : target.getMemDumpAddr()
+		} );
 	def getMemJson(self, address, time):
 		if not time.isdigit():
 			return json.dumps({'error' : "Time format not recognized!"})
@@ -29,6 +36,11 @@ class GuiServer(object):
 		res = {}
 		res['bytes'] = []
 		res['times'] = []
+
+
+		target = cherrypy.session['trace']
+
+		mh = MemoryHistory(target)
 
 		with lock:
 			for addr in xrange(address,address + 8*6):
@@ -43,6 +55,8 @@ class GuiServer(object):
 	def getInstructions(self, time):
 		time = int(time)
 		startTime = max(0,time-10)
+		target = cherrypy.session['trace']
+		t = target.getDataflowTracer()
 		with lock:
 			t.seek(startTime)
 			result = {'disasm' : []}
@@ -55,6 +69,8 @@ class GuiServer(object):
 	def dataflow(self, time, address):
 		address = int(address)
 		time = int(time)
+		target = cherrypy.session['trace']
+		t = target.getDataflowTracer()
 		with lock:
 			startTime = systemtime()
 			df = BackwardDataFlow(t)
@@ -62,7 +78,7 @@ class GuiServer(object):
 			nodes, edges = root.dump()
 			endTime = systemtime()
 
-		graph = "digraph G {\nsize = \"8,4\"\n"
+		graph = "digraph G {\n" #size = \"10,20 \"\n"
 		graph += "/* Took %f seconds */\n" % (endTime-startTime)
 		#XXX: We're cheating by using set here, should move into proper engine
 		for e in set(edges):
@@ -70,16 +86,26 @@ class GuiServer(object):
 		graph += "}";
 		
 		return json.dumps({ 'graph' : graph } )
+	def loadTrace(self, trace):
+		if not traces.has_key(trace):
+			return json.dumps( {'status' : 'error' } )
+		cherrypy.session['trace'] = traces[trace]
+
+		return json.dumps( {'status' : 'ok' } )
 
 	index.exposed = True
 	getMemJson.exposed = True
+	getInfo.exposed = True
 	getInstructions.exposed = True
 	dataflow.exposed = True
+	loadTrace.exposed = True
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 conf = {'/static': {'tools.staticdir.on': True,
-                      'tools.staticdir.dir': os.path.join(current_dir, 'static')}}
+                      'tools.staticdir.dir': os.path.join(current_dir, 'static_html')}}
 
 #cherrypy.server.socket_host = "0.0.0.0"
+cherrypy.config.update( {"tools.sessions.on": True,
+			"tools.sessions.timeout": 60 })
 cherrypy.quickstart(GuiServer(), config = conf)
 

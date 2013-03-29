@@ -2,12 +2,14 @@ import sys
 sys.path.append(".")
 sys.path.append("./src")
 import os
-from traceparser import *
 import json
 from threading import Lock
 import leveldb
 
-import simplejson as json
+try:
+	import simplejson as json
+except ImportError:
+	import json
 
 class DataFlow:
 	def __init__(self, db):

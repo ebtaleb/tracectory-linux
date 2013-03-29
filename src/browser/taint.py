@@ -1,8 +1,7 @@
 import sys
-from traceparser import *
+#from traceparser import *
 import copy
 import unittest
-import traceparser
 
 class BackTrace:
 	"""Enables us to trace back in time"""
