@@ -3,10 +3,9 @@ import os
 import json
 from threading import Lock
 from time import time as systemtime
-
 from session import TargetTrace
-from MemoryHistory import *
-
+from datastore.DataFlow import *
+from taint import *
 
 traces = {
 	't206'     : TargetTrace("t206_timed"),
@@ -16,6 +15,10 @@ traces = {
 
 traces['memcrypt'].memDumpAddr = 0x404050;
 traces['t206'].memDumpAddr = 2771222;
+traces['formatstring'].memDumpAddr = 0x403064;
+
+def parseExpr(x):
+	return int(x, 16)
 
 lock = Lock()
 class GuiServer(object):
@@ -26,7 +29,8 @@ class GuiServer(object):
 		return json.dumps( { 
 
 		'maxTime' : target.getMaxTime(),
-		'memDumpAddr' : target.getMemDumpAddr()
+		'memDumpAddr' : target.getMemDumpAddr(),
+		'infoHtml' : target.getInfoHtml()
 		} );
 	def getMemJson(self, address, time):
 		if not time.isdigit():
@@ -40,8 +44,7 @@ class GuiServer(object):
 
 
 		target = cherrypy.session['trace']
-
-		mh = MemoryHistory(target)
+		mh = target.getMemoryHistory()
 
 		with lock:
 			for addr in xrange(address,address + 8*6):
@@ -85,7 +88,7 @@ class GuiServer(object):
 		with lock:
 			startTime = systemtime()
 			df = BackwardDataFlow(t)
-			root = df.follow(address, time, 300)
+			root = df.follow(address, time, 4000)
 			nodes, edges = root.dump()
 			endTime = systemtime()
 
@@ -112,7 +115,7 @@ class GuiServer(object):
 		dataLen = 3*16 + 1
 		with lock:
 			t = target.getDataflowTracer()
-			mh = MemoryHistory(target)
+			mh = target.getMemoryHistory()
 			analyzer = ForwardTaintAnalyzer()
 			#analyzer.mark(0x403064, 0, 3*16 + 1)
 			analyzer.mark(address, 0, dataLen)
@@ -121,18 +124,36 @@ class GuiServer(object):
 			result['graph'] = analyzer.toGraph(res)
 			result['data'] = [mh.get(x, time) for x in xrange(address,address+dataLen)]
 		return json.dumps(result, indent = 4)
-	def dbg(self, address):
+	def memoryAccessEvents(self, address, bytes, time, cycles):
 		target = cherrypy.session['trace']
 #		address = int(address)
 #		time = int(time)
+		address = parseExpr(address)
+		time = int(time)
+		bytes = int(bytes)
+		memRange = range(address, address + bytes)
+		cycles = int(cycles)
+
+		n = len(memRange)
+		#We trust that there are not more than one million memory accesses
+		complexity = n * 20 + cycles
+		if complexity > 500000:
+			return json.dumps({ 'status' : 'error',
+			'error' : 'Estimated complexity exceeds server bounds, rejected!'})
+			
+
 		with lock:
-			mh = MemoryHistory(target)
+			mh = target.getMemoryHistory()
 			#evts = mh.listMemoryEvents(range(0x404050,0x404050 + 16), 0, 1000)
-			evts = mh.listMemoryEvents(range(0x2a48e0, 0x2a4900 + 16*4), 0, 60000)
-		return json.dumps(evts, indent = 4)
+			evts = mh.listMemoryEvents(memRange, time, time + cycles)
+		return json.dumps(
+			{'status' : 'ok',
+		 	 'graph' : evts,
+			 'rangeSize' : len(memRange)
+			}, indent = 4)
 	
 
-	dbg.exposed = True
+	memoryAccessEvents.exposed = True
 	index.exposed = True
 	getMemJson.exposed = True
 	getInfo.exposed = True

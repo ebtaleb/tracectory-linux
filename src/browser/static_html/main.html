@@ -24,12 +24,14 @@
   #cpuState {float: left; font-family:monospace; font-size: 8pt; }
   #cpuState2 {float: left; font-family:monospace; font-size: 8pt; }
   .description { font-size: 10pt; }
+  .smallButton { font-size: 10pt; }
+ .aTop { font-size: 10pt; }
   </style>
 </head>
 <body>
 
 <div style="margin-bottom: 10px;">
-<ul id="menu" class="menubar">
+<ul id="menu" class="menubar" style="font-size: 10pt">
 	<li><a href="#">File</a>
 		<ul>
 		
@@ -53,7 +55,7 @@
 <div id="timeView" class="ui-widget-content" >
 <div class="ui-widget-header">Global time control</div>
 
-<button id="timeJump">Jump to time</button>
+<button id="timeJump" class="smallButton">Jump to time</button>
 <div id="timeslider"></div> 
  </div>
 </div>
@@ -62,38 +64,50 @@
 <div style="clear: both"></div>
 
 <div id="accordion">
-
-<h3>CPU view: Instructions and CPU state</h3>
-<div id="instrView" class="ui-widget-content">
-	<p class="description">This view shows the most recently executed instructions and a couple of instructions executed before it. On the right two database dumps are shown from different versions of the engine. The engine uses notation tttt/iiiiiiiii, where tttt = timestamp and iiiii = address of instruction.
-	<div>
-	<textarea id="instrContents" rows="30" cols="40"></textarea>
-	<textarea id="cpuState" rows="30" cols="40"></textarea>
-	<textarea id="cpuState2" rows="30" cols="40"></textarea>
+	<h3 class="aTop">General trace info</h3>
+	<div class="ui-widget-content">
+		<div id="generalInfo">
+		Loading...
+		</div>
 	</div>
-</div>
-<h3>Memory overview: Show direct memory accesses</h3>
-<div id="rwGraph" class="ui-widget-content">
-	<p class="description">
-		This view is used to graph all memory reads and writes
-		in a given memory range. Only direct accesses are graphed.<br/>
-		Complexity: O(n log m + n log n + C), where n = number of memory locations; m = maximum memory oprerations to a single location;  C = number of items in graph
+
+	<h3 class="aTop">CPU view: Instructions and CPU state</h3>
+	<div id="instrView" class="ui-widget-content">
+		<p class="description">This view shows the most recently executed instructions and a couple of instructions executed before it. On the right two database dumps are shown from different versions of the engine. The engine uses notation tttt/iiiiiiiii, where tttt = timestamp and iiiii = address of instruction.
+		<div>
+		<textarea id="instrContents" rows="30" cols="40"></textarea>
+		<textarea id="cpuState" rows="30" cols="40"></textarea>
+		<textarea id="cpuState2" rows="30" cols="40"></textarea>
+		</div>
+	</div>
+	<h3 class="aTop">Memory overview: Show direct memory accesses</h3>
+	<div id="rwGraph" class="ui-widget-content">
+		<p class="description">
+			This view is used to graph all memory reads and writes
+			in a given memory range. Only direct accesses are graphed.<br/>
+			Complexity: O(n log m + n log n + C), where n = number of memory locations; m = maximum memory oprerations to a single location;  C = number of items in graph
+		</p>
+		<button id="btnRW">Draw</button>
+		<div id="rwGraphCanvas"></div>
+	</div>
+
+	<h3 class="aTop">Taint graph: (file format/structure RE)</h3>
+	<div id="readGraph" class="ui-widget-content">
+		<p class="description">
+		This mode of analysis works as follows. We begin by marking a certain memory range of interest as "tainted". Thereafter XXXX instructions are traced to determine if they access tainted regions. If an instruction accesses a tainted value, dataflow analysis is used to mark the regions affected by this data tainted as well. Moreover, any access to a tainted value is traced back to the original memory location and is used to draw the graph. The main use case is to investigate unknown file formats / data structures.
+		</p>
+	<p class ="description">
+		The y axis represents time and is compressed so that each access to the exact same set of bytes constitutes only one "time step". Color is determined based on a hash of instruction pointer values during times of access. Same color thus indicates the same set of instructions. The x axis represents memory addresses. Complexity: O(n), where n = number of instructions, large constant factor
 	</p>
-	<button id="btnRW">Draw</button>
-	<div id="rwGraphCanvas"></div>
-</div>
+		<button id="btnForwardTaint">Draw</button>
+		<div id="readGraphCanvas"></div>
+	</div>
 
-<h3>Taint graph: (file format/structure RE)</h3>
-<div id="readGraph" class="ui-widget-content">
-	<button id="btnForwardTaint">Draw</button>
-	<div id="readGraphCanvas"></div>
-</div>
-
-<h3>Dataflow graph: Where does this value originate from? (use by clicking a hex value in the memory view)</h3>
-<div id="graphView" class="ui-widget-content"  >
-	<div style="width:900px;clear:both;"></div>
-	<div id="graph" style="width: 100%; height: 400px;"></div>
-</div>
+	<h3 class="aTop">Dataflow graph: Where does this value originate from? (use by clicking a hex value in the memory view)</h3>
+	<div id="graphView" class="ui-widget-content"  >
+		<div style="width:900px;clear:both;"></div>
+		<div id="graph" style="width: 100%; height: 400px;"></div>
+	</div>
 
 </div>
 <!-- Dialogs -->
@@ -104,6 +118,26 @@
 	<input type="text" name="txtTargetTime" id="txtTargetTime"></input>
 	</fieldset>
 	</form>
+</div>
+
+<div id="dlgRWGraph" title="Memory access overview">
+	<fieldset>
+
+	<label for="txtAddressRW">Address (hex)</label>
+	<input type="text" name="txtAddressRW" id="txtAddressRW"></input>
+
+	<label for="txtBytesRW">Byte count (dec)</label>
+	<input type="text" name="txtBytesRW" id="txtBytesRW" value="64"></input>
+
+	<label for="txtTimeTW">Start time of analysis</label>
+	<input type="text" name="txtTimeRW" id="txtTimeRW"></input>
+
+	<label for="txtCyclesRW">Number of cycles to analyze (dec)</label>
+	<input type="text" name="txtCyclesRW" id="txtCyclesRW" value="50000"></input>
+
+
+	</fieldset>
+
 </div>
 
 <div id="dlgForwardTaint" title="Forward taint analysis">

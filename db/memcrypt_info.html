@@ -1,0 +1,21 @@
+<p style="font-size:11pt">This is a trace of the program below. You can move the time slider around to see how the memory changes in time (the decryption and encryption happen at the beginning and end of the trace). Clicking on a red value will move the time slider to the last write and display a dataflow trace that shows how the value written was derived.</p>
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>char</span> data<span style='color:#808030; '>[</span><span style='color:#008c00; '>100</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+
+<span style='color:#800000; font-weight:bold; '>int</span> apply<span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>int</span> a<span style='color:#808030; '>)</span><span style='color:#800080; '>{</span>
+    <span style='color:#800000; font-weight:bold; '>return</span> a<span style='color:#808030; '>^</span><span style='color:#008c00; '>5</span><span style='color:#800080; '>;</span>
+<span style='color:#800080; '>}</span>
+<span style='color:#800000; font-weight:bold; '>void</span> crypt<span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>char</span><span style='color:#808030; '>*</span> ptr<span style='color:#808030; '>,</span> <span style='color:#800000; font-weight:bold; '>int</span> len<span style='color:#808030; '>)</span><span style='color:#800080; '>{</span>
+    <span style='color:#800000; font-weight:bold; '>int</span> i<span style='color:#800080; '>;</span>
+    <span style='color:#800000; font-weight:bold; '>for</span><span style='color:#808030; '>(</span>i <span style='color:#808030; '>=</span> <span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span> i <span style='color:#808030; '>&lt;</span>len<span style='color:#800080; '>;</span>i<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span><span style='color:#800080; '>{</span>
+        ptr<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span> <span style='color:#808030; '>=</span> apply<span style='color:#808030; '>(</span>ptr<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    <span style='color:#800080; '>}</span>
+<span style='color:#800080; '>}</span>
+
+<span style='color:#800000; font-weight:bold; '>int</span> <span style='color:#400000; '>main</span><span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>int</span> argc<span style='color:#808030; '>,</span> <span style='color:#800000; font-weight:bold; '>char</span><span style='color:#808030; '>*</span><span style='color:#808030; '>*</span> argv<span style='color:#808030; '>)</span><span style='color:#800080; '>{</span>
+    <span style='color:#603000; '>memcpy</span><span style='color:#808030; '>(</span>data<span style='color:#808030; '>,</span><span style='color:#800000; '>"</span><span style='color:#0000e6; '>M`iij%rjwia$</span><span style='color:#800000; '>"</span><span style='color:#808030; '>,</span><span style='color:#008c00; '>12</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    data<span style='color:#808030; '>[</span><span style='color:#008c00; '>12</span><span style='color:#808030; '>]</span> <span style='color:#808030; '>=</span> <span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>
+    crypt<span style='color:#808030; '>(</span>data<span style='color:#808030; '>,</span> <span style='color:#008c00; '>12</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    <span style='color:#603000; '>printf</span><span style='color:#808030; '>(</span><span style='color:#800000; '>"</span><span style='color:#0f69ff; '>%s</span><span style='color:#0f69ff; '>\n</span><span style='color:#800000; '>"</span><span style='color:#808030; '>,</span>data<span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    crypt<span style='color:#808030; '>(</span>data<span style='color:#808030; '>,</span> <span style='color:#008c00; '>12</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+<span style='color:#800080; '>}</span>
+</pre>

@@ -115,6 +115,7 @@ function initSlider(){
 	$.getJSON("/getInfo").done(
 		function(data){
 			$("#timeslider").slider("option","max",data["maxTime"]);
+			$("#generalInfo").html(data["infoHtml"]);
 			lastMemAddr = data['memDumpAddr'];
 		}
 	);
@@ -148,7 +149,7 @@ function refreshGraph(address, time){
 	var params =  {'time' : time, 'address': address};
 	$.getJSON("/dataflow", params).done(
 	 function(data){
-		$("#accordion").accordion( { active: 3});
+		$("#accordion").accordion( { active: 4});
 		var svg = Viz(data['graph'], "svg");
 		svg = svg.replace(new RegExp("width=\".*\"","gm"),"width=\"100%\"");
 		$("#graph").html(svg);
@@ -206,6 +207,15 @@ function initDialogs(){
 
 	$("#dlgSetMemAddr").dialog({
 		autoOpen: false,
+		open: function(){
+		    $("#dlgSetMemAddr").keypress(function(e) {
+		      if (e.keyCode == $.ui.keyCode.ENTER) {
+			updateSliderFromDialog();
+			return false;
+		      }
+		    });
+		},
+
 		buttons: {
 			"OK" : function(){
 				lastMemAddr = parseInt($("#txtMemAddr").val(),16);
@@ -217,6 +227,7 @@ function initDialogs(){
 	});
 	$("#btnSetAddr").click(function(){ $("#dlgSetMemAddr").dialog("open"); });
 	fwdTaintDlg();
+	initRwGraphDlg();
 }
 
 
@@ -232,9 +243,47 @@ function fwdTaintOnClick(){
 function fwdTaintDlg(){
 	$("#dlgForwardTaint").dialog({
 		autoOpen: false,
+		open: function(){
+		    $("#dlgForwardTaint").keypress(function(e) {
+		      if (e.keyCode == $.ui.keyCode.ENTER) {
+			updateSliderFromDialog();
+			return false;
+		      }
+		    });
+		},
 		modal: true,
 		buttons: {
 			"Trace & draw" : fwdTaintOnClick,
+
+			"Close": function() { $(this).dialog("close"); }
+		}
+		
+	});
+
+}
+function rwTraceOnClick(){
+	var address = $("#txtAddressRW").val();
+	var bytes = $("#txtBytesRW").val();
+	var time = $("#txtTimeRW").val();
+	var cycles = $("#txtCyclesRW").val();
+	drawRWGraph(address, parseInt(bytes), parseInt(time), parseInt(cycles));
+}
+function initRwGraphDlg(){
+	$("#dlgRWGraph").dialog({
+		autoOpen: false,
+		modal: true,
+		open: function(){
+		    $("#dlgRWGraph").keypress(function(e) {
+		      if (e.keyCode == $.ui.keyCode.ENTER) {
+			updateSliderFromDialog();
+			return false;
+		      }
+		    });
+		},
+
+
+		buttons: {
+			"Trace & draw" : rwTraceOnClick,
 
 			"Close": function() { $(this).dialog("close"); }
 		}
@@ -290,28 +339,53 @@ function drawReadGraph(address, time){
 );
 	}
 
+function moveToTime(newTime){
+	$("#timeslider").slider("value",newTime);
+}
 var rwPaper = null;
-function drawRWGraph(){
-	$.getJSON("/dbg", {'address' : -1 }).done(
+function drawRWGraph(address, bytes, time, cycles){
+	var params = {
+			'address' : address,
+			'bytes' : bytes,
+			'time' : time,
+			'cycles' : cycles
+	};
+	$.getJSON("/memoryAccessEvents", params).done(
 	function(response){
-		var events = response;
+		var events = response['graph'];
 		var paper;
-		width = events.length * 10 + 5;
-		height = events.length * 3 + 5;
-		if(rwPaper != null) {paper = rwPaper; }
+
+		if(rwPaper != null) {
+			paper = rwPaper; 
+		}
 		else{
-			paper = new Raphael(document.getElementById("rwGraphCanvas"), width, height);
+			paper = new Raphael(document.getElementById("rwGraphCanvas"));
 			rwPaper = paper;
+		}
+		paper.clear();
+
+		if(response['status'] == 'error'){
+			alert(response['error']);
+			return;
 		}
 
 
+		var rangeSize = response['rangeSize'];
+		ySize = 6;
+		width = rangeSize * 10 + 15;
+		height = events.length * ySize + 15;
+		paper.setSize(width, height);
+
 		for(y=0;y<events.length;y++){
 			for(i = 0; i < events[y][1].length; i++){
-				x = events[y][1][i][0] - 0x2a48e0;
+				x = events[y][1][i][0];
 				type = events[y][1][i][1];
-				paper.rect(x * 10, y * 3, 10 , 3).attr(
-					{"fill" : (type == "W") ? "#f00" : "#eee"}
-				);
+				paper.rect(x * 10, y * ySize, 10 , ySize)
+				.attr({"fill" : (type == "W") ? "#f00" : "#eee"})
+				.data("time", events[y][0])
+				.click(function(){
+					moveToTime(this.data("time"));
+				});
 			}
 		}
 	}
@@ -339,8 +413,8 @@ $ (function() {
 
 	$("#btnRW").button().click(
 		function(event){
-			//$("#dlgForwardTaint").dialog("open");
-			drawRWGraph();
+			$("#dlgRWGraph").dialog("open");
+			//drawRWGraph();
 			event.preventDefault();
 		}
 

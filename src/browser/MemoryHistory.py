@@ -58,6 +58,14 @@ class MemoryHistory:
 		if (index+1) >= self.__listCount(key):
 			return None
 		return self.__getListInt(key, index + 1)
+	def nextWrite(self, addr,time):
+		key = "write_%d" % addr
+		index = self.binSearch(key, time)
+		if index is None: return None
+		if (index+1) >= self.__listCount(key):
+			return None
+		return self.__getListInt(key, index + 1)
+
 
 
 	def get(self, address, time):
@@ -74,15 +82,23 @@ class MemoryHistory:
 			writtenAt = 0
 
 		#Plan B: Next read after this unresolvable write
-		#XXX: Should check that there is no intervening write
 		readAt=self.nextRead(address, writtenAt)
+
+
+		#XXX: Check that there is no intervening write
+		nextWrite = self.nextWrite(address,writtenAt+1)
+		if nextWrite is not None and nextWrite<readAt:
+			return None
+
 		if readAt is None: return None
 		value = self.getByteReadAt(address, readAt)
 		if value is not None:
 			return value, -1
 		
 	def getByteWrittenAt(self, address, writtenAt):
-		curTime, eip, instr, changeMatrix = self.newDF.getAt(writtenAt)
+		traceData = self.newDF.getAt(writtenAt)
+		if traceData is None: return None
+		curTime, eip, instr, changeMatrix = traceData
 		for dest, sources in changeMatrix.items():
 			if str(dest) == str(address):
 				#XXX: Add proper data structure
@@ -93,7 +109,7 @@ class MemoryHistory:
 					regName = source[:source.find("_")]
 					index = int(source[source.find("_")+1:])
 					if regName == "const":
-						return index, curTime
+						return index
 					fullVal = self.newDF.regs[regName.upper()]
 					return ((fullVal>>index) & 0xff)
 				else:
@@ -118,7 +134,7 @@ class MemoryHistory:
 			regName = dest[:dest.find("_")]
 			index = int(dest[dest.find("_")+1:])
 			fullVal = self.newDF.regs[regName.upper()]
-			val = ((fullVal>>index)&0xff)
+			val = (fullVal>>index)&0xff
 			return val
 		return -1
 			
@@ -141,30 +157,31 @@ class MemoryHistory:
 		return result
 	def listMemoryEvents(self, byteArray, startTime, endTime):
 		eventsByTime = defaultdict(list)
-		for curAddr in byteArray:
+		for byteIdx in xrange(0, len(byteArray)):
+			curAddr = byteArray[byteIdx]
 			l = "read_%d" % curAddr
 			for curTime in  self.getValuesInRange(l, startTime, endTime):
-				eventsByTime[curTime].append( (curAddr, "R"))
+				eventsByTime[curTime].append( (byteIdx, "R"))
 
 			l = "write_%d" % curAddr
 			for curTime in  self.getValuesInRange(l, startTime, endTime):
-				eventsByTime[curTime].append( (curAddr, "W"))
+				eventsByTime[curTime].append( (byteIdx, "W"))
 		keys = eventsByTime.keys()
 		result = []
 		for curTime in sorted(keys):
 			result.append( (curTime, eventsByTime[curTime] ))
 		return result
+
+	def getRW(self, changeMatrix):
+		reads, writes = set()
+		for dst, sources in changeMatrix.items():
+			if str(dst).isdigit():
+				writes.add(int(dst))
+			for src in sources:
+				if str(src).isdigit():
+					reads.add(src)
+		return reads, writes
+
+	
+
 			
-
-
-
-
-
-#A = TaintAnalyzer()
-#BLOCK_START = 0x40305c
-#BLOCK_LEN = 14
-#BLOCK_START = 0x403064
-#BLOCK_LEN = 51
-#TA.mark(BLOCK_START, 0, BLOCK_LEN)
-
-
