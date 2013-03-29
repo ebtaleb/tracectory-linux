@@ -9,7 +9,7 @@ from MemoryHistory import *
 
 
 traces = {
-	't206'     : TargetTrace("t206"),
+	't206'     : TargetTrace("t206_timed"),
 	'memcrypt' : TargetTrace("qkq"),
 	'formatstring' : TargetTrace("formatstring"),
 }

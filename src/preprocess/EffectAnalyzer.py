@@ -93,19 +93,18 @@ def getDataSource(sourceObject, regs, byteNum):
 		bytes =  []
 		for i in xrange(0,sourceObject.get_size(),8):
 			bytes.append((num>>i)&0xff)
-		return bytes
 #	elif isinstance(sourceObject, ExprOp):
 #		res = []
 #		for arg in sourceObject.args:
 #			res += getDataSource(arg, regs, byteNum)
 #		return res
-#	elif isinstance(sourceObject, ExprMem):
-#		startAddr = sourceObject.arg
-#
-#		size = sourceObject.size/8
-#		addrExpr = expr_simp(sourceObject.arg.replace_expr(toReplaceDict(regs)))
-#
-#		return [(addrExpr.arg + i) for i in xrange(size)]	
+	elif isinstance(sourceObject, ExprMem):
+		startAddr = sourceObject.arg
+
+		size = sourceObject.size/8
+		addrExpr = expr_simp(sourceObject.arg.replace_expr(toReplaceDict(regs)))
+
+		bytes = [(addrExpr.arg + i) for i in xrange(size)]	
 	else:
 		print sourceObject.__class__
 		raise ValueError, sourceObject.__class__

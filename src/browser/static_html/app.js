@@ -10,6 +10,11 @@ function formatDword(d){
 	return temp.substring(temp.length-8);
 }
 
+function formatWord(d){
+	var temp =("000000000"+d.toString(16));
+	return temp.substring(temp.length-2);
+}
+
 function formatChar(c){
 	if(c<30 || c>=120)
 		return ".";
@@ -208,13 +213,16 @@ function initReadGraph(){
 	
 	perByteX = Math.floor(width/byteCount);
 	perByteY = 5;
+	for(var x=0;x<byteCount;x++){
+		paper.text(x*perByteX,10,(x), paper.getFont("Courier"),10).attr(
+				{"text-anchor": "start"});
+	}
 	$.getJSON("/forwardTaint", {}).done(
 	function(data){
 		for(var y=0;y<data.length;y++){
 			for(var j=0;j<data[y][0].length;j++){
 				var loc = data[y][0][j];
-				console.log(loc);
-				paper.rect(loc*perByteX, y*perByteY, perByteX,perByteY).attr(
+				paper.rect(loc*perByteX, 25+y*perByteY, perByteX,perByteY).attr(
 					{"fill" : data[y][1], "stroke" : data[y][1]}	
 				);
 			}
@@ -226,12 +234,12 @@ function initReadGraph(){
 
 function init(){
 	initReadGraph();
-	refreshMemory(lastMemAddr, 0);
+	$("#timeslider").slider("value",0);
 }
 
 $ (function() {
 	
-	$("#menu").menubar( { select: select } );
+	//$("#menu").menubar( { select: select } );
 	initMenu();
 	//$( "#graphView" ).draggable().resizable({});
 	//$("#graphView").scroll();
