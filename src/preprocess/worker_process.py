@@ -135,4 +135,8 @@ def main():
 			
 
 if __name__ == '__main__':
-	main()
+	if len(sys.argv)==3:
+		subprocessInit(sys.argv[1], True, False)
+		print processLine(sys.argv[2])
+	else:
+		main()
