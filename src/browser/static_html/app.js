@@ -36,7 +36,7 @@ function byteToHex(b){
 
 
 var lastMemAddr = 2771222;
-function refreshMemory(address, time){
+function refreshMemoryDump(address, time){
 var params = {"address" : address, 'time' : time};	
 $.getJSON("/memory/getMemJson", params).done(
 	function(data){
@@ -83,7 +83,7 @@ $.getJSON("/memory/getMemJson", params).done(
 
 
 
-function refreshInstructions(time){
+function refreshCPUView(time){
 	$.getJSON("/cpu/getInstructions", {'time' : time}).done(
 		function(data){
 			var output = '';
@@ -119,7 +119,7 @@ function refreshInstructions(time){
 				}
 				readHtml += "</ul>";
 			}
-
+			//Writes
 			if(data['writes'].length != 0){
 				writeHtml = "Written:<ul>\n";
 				for(i = 0; i < data['writes'].length; i++){
@@ -145,12 +145,6 @@ function refreshInstructions(time){
 
 
 
-function onClickJump(){
-	var newTime = $("#txtTargetTime").val();
-	$("#timeslider").slider("value",newTime);
-
-}
-
 function initSlider(){
 	$("#timeslider").slider();
 	$.getJSON("/getInfo").done(
@@ -163,19 +157,10 @@ function initSlider(){
 	$("#timeslider").on("slidechange",
 		function(event, ui){
 			var val = $("#timeslider").slider("value");
-			refreshMemory(lastMemAddr, val);
-			refreshInstructions(val);	
+			refreshMemoryDump(lastMemAddr, val);
+			refreshCPUView(val);	
 		});
 
-	//The "jump to a certain time" form
-
-	$("#timeJump").button().click(function(event){
-
-		var val = $("#timeslider").slider("value");
-		$("#txtTargetTime").val(val);
-		$("#jumpToForm").dialog( "open" );
-		event.preventDefault();
-	});
 
 }
 
@@ -200,11 +185,12 @@ function refreshGraph(address, time){
 
 }
 
-function initMenu(){
+function menuInit(){
+	$("#menu").menubar( { select: menuSelect } );
 }
 
 
-function select(event, ui){
+function menuSelect(event, ui){
 	var id = ui.item[0].id;
 	if(id.substring(0,5) == "load_"){
 		toLoad = id.substring(5);
@@ -221,19 +207,13 @@ function select(event, ui){
 }
 
 
-function init(){
-	//initReadGraph();
-	$("#timeslider").slider("value",0);
-}
-
-
-function onMemSetClick(){
-	lastMemAddr = parseInt($("#txtMemAddr").val(),16);
-	refreshMemory(lastMemAddr, $("#timeslider").slider("value"));
+function onClickJump(){
+	var newTime = $("#txtTargetTime").val();
+	$("#timeslider").slider("value",newTime);
 
 }
 
-function initDialogs(){
+function initTimeJumpDlg(){
 	$("#jumpToForm").dialog( { 
 		autoOpen: false, 
 		resizable : false,
@@ -253,6 +233,24 @@ function initDialogs(){
 		}
 		} );
 
+	$("#timeJump").button().click(function(event){
+
+		var val = $("#timeslider").slider("value");
+		$("#txtTargetTime").val(val);
+		$("#jumpToForm").dialog( "open" );
+		event.preventDefault();
+	});
+
+}
+
+
+function onMemSetClick(){
+	lastMemAddr = parseInt($("#txtMemAddr").val(),16);
+	refreshMemoryDump(lastMemAddr, $("#timeslider").slider("value"));
+
+}
+
+function initMemdumpDlg(){
 	$("#dlgSetMemAddr").dialog({
 		autoOpen: false,
 		open: function(){
@@ -271,17 +269,22 @@ function initDialogs(){
 		}
 	});
 	$("#btnSetAddr").click(function(){ $("#dlgSetMemAddr").dialog("open"); });
+
+}
+
+function initDialogs(){
+	initTimeJumpDlg();
+	initMemdumpDlg();
 	fwdTaintDlg();
 	initRwGraphDlg();
 }
 
 
-// forward taint
-
+/////////////// Taint visualization
 function fwdTaintOnClick(){
 	var address = $("#txtAddress").val();
 	var time = $("#txtTime").val();
-	drawReadGraph(parseInt(address,16), parseInt(time));
+	drawTaintVis(parseInt(address,16), parseInt(time));
 
 }
 
@@ -299,36 +302,6 @@ function fwdTaintDlg(){
 		modal: true,
 		buttons: {
 			"Trace & draw" : fwdTaintOnClick,
-
-			"Close": function() { $(this).dialog("close"); }
-		}
-		
-	});
-
-}
-function rwTraceOnClick(){
-	var address = $("#txtAddressRW").val();
-	var bytes = $("#txtBytesRW").val();
-	var time = $("#txtTimeRW").val();
-	var cycles = $("#txtCyclesRW").val();
-	drawRWGraph(address, parseInt(bytes), parseInt(time), parseInt(cycles));
-}
-function initRwGraphDlg(){
-	$("#dlgRWGraph").dialog({
-		autoOpen: false,
-		modal: true,
-		open: function(){
-		    $("#dlgRWGraph").keypress(function(e) {
-		      if (e.keyCode == $.ui.keyCode.ENTER) {
-			rwTraceOnClick();
-			return false;
-		      }
-		    });
-		},
-
-
-		buttons: {
-			"Trace & draw" : rwTraceOnClick,
 			"Close": function() { $(this).dialog("close"); }
 		}
 		
@@ -336,17 +309,17 @@ function initRwGraphDlg(){
 
 }
 
-var readGraphPaper;
-function drawReadGraph(address, time){
+var taintPaper;
+function drawTaintVis(address, time){
 
 	width = 1000;
 	byteCount = 70;
 	var paper;
-	if(readGraphPaper != null){
-		paper = readGraphPaper;
+	if(taintPaper != null){
+		paper = taintPaper;
 	}else{
 		paper = new Raphael(document.getElementById("readGraphCanvas"), width, 400);
-		readGraphPaper = paper;
+		taintPaper = paper;
 	}
 	
 	paper.clear();
@@ -380,35 +353,49 @@ function drawReadGraph(address, time){
 		}
 
 	}
-);
-	}
-
-function moveToTime(newTime){
-	$("#timeslider").slider("value",newTime);
-}
-var rwPaper = null;
-
-
-function drawAxis(paper, width, height, xTitle, yTitle){
-	paper.path("M5,5L5," + height +
-		   "L0," + (height - 5) + 
-		   "M5," + height + 
-		   "L10," + (height - 5))
-		.attr({ 'stroke-width' : 2 } );
-	paper.path("M5,5L" + width + ",5"+
-		   "L" + (width-5) + ",0" + "M"+width+",5L"+(width-5)+",10")
-		.attr({'stroke-width' : 2 } );
-	paper.text(10, height/2, yTitle).transform("r90");
-	paper.text(width/2,10, xTitle);
-
+	);
 }
 
-function drawRWGraph(address, bytes, time, cycles){
+
+//////////// Memory access overview /////////////////
+function rwTraceOnClick(){
+	var address = $("#txtAddressRW").val();
+	var bytes = $("#txtBytesRW").val();
+	var time = $("#txtTimeRW").val();
+	var cycles = $("#txtCyclesRW").val();
+	var compress = $("#chkCompress").prop("checked") ? 1 : 0;
+	drawRWGraph(address, parseInt(bytes), parseInt(time), parseInt(cycles), compress);
+}
+function initRwGraphDlg(){
+	$("#dlgRWGraph").dialog({
+		autoOpen: false,
+		modal: true,
+		open: function(){
+		    $("#dlgRWGraph").keypress(function(e) {
+		      if (e.keyCode == $.ui.keyCode.ENTER) {
+			rwTraceOnClick();
+			return false;
+		      }
+		    });
+		},
+
+
+		buttons: {
+			"Trace & draw" : rwTraceOnClick,
+			"Close": function() { $(this).dialog("close"); }
+		}
+		
+	});
+
+}
+
+function drawRWGraph(address, bytes, time, cycles, compress){
 	var params = {
 			'address' : address,
 			'bytes' : bytes,
 			'time' : time,
-			'cycles' : cycles
+			'cycles' : cycles,
+			'compress' : compress
 	};
 	$.getJSON("/memoryAccessEvents", params).done(
 	function(response){
@@ -453,10 +440,30 @@ function drawRWGraph(address, bytes, time, cycles){
 	
 }
 
+
+function moveToTime(newTime){
+	$("#timeslider").slider("value",newTime);
+}
+var rwPaper = null;
+
+
+function drawAxis(paper, width, height, xTitle, yTitle){
+	paper.path("M5,5L5," + height +
+		   "L0," + (height - 5) + 
+		   "M5," + height + 
+		   "L10," + (height - 5))
+		.attr({ 'stroke-width' : 2 } );
+	paper.path("M5,5L" + width + ",5"+
+		   "L" + (width-5) + ",0" + "M"+width+",5L"+(width-5)+",10")
+		.attr({'stroke-width' : 2 } );
+	paper.text(10, height/2, yTitle).transform("r90");
+	paper.text(width/2,10, xTitle);
+
+}
+
 $ (function() {
 	
-	$("#menu").menubar( { select: select } );
-	initMenu();
+	menuInit();
 	//$( "#graphView" ).draggable().resizable({});
 	//$("#graphView").scroll();
 	//$( "#memView").resizable();
@@ -480,5 +487,5 @@ $ (function() {
 
 	);
 
-	setTimeout(init, 300);
+	$("#timeslider").slider("value",0);
 });

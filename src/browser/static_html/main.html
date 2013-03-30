@@ -84,10 +84,10 @@
 		<div id="memoryLinks"></div>
 		</div>
 	</div>
-	<h3 class="aTop">Memory overview: Visualize direct memory accesses</h3>
+	<h3 class="aTop">Memory access overview: Visualize direct memory accesses</h3>
 	<div id="rwGraph" class="ui-widget-content">
 		<p class="description">
-			This view is used to visualize all memory reads and writes accessing a given memory range. Read accesses are colored green and write accesses red.<br/>
+			This view is used to visualize all memory reads and writes accessing a given memory range. Read accesses are colored green and write accesses red. Click on a memory access to move the time slider to the instruction that caused the access and check CPU view.<br/>
 			Computational complexity: O(n log m + n log n + C), where n = number of memory locations; m = maximum number of memory oprerations to a single location in the range;  C = size of output i.e. the amount of squares 
 		</p>
 		<button id="btnRW">Draw</button>
@@ -126,18 +126,20 @@
 <div id="dlgRWGraph" title="Memory access overview">
 	<fieldset>
 
-	<label for="txtAddressRW">Address (hex)</label>
-	<input type="text" name="txtAddressRW" id="txtAddressRW"></input>
+		<label for="txtAddressRW">Address (hex)</label>
+		<input type="text" name="txtAddressRW" id="txtAddressRW"></input>
 
-	<label for="txtBytesRW">Byte count (dec)</label>
-	<input type="text" name="txtBytesRW" id="txtBytesRW" value="100"></input>
+		<label for="txtBytesRW">Byte count (dec)</label>
+		<input type="text" name="txtBytesRW" id="txtBytesRW" value="100"></input>
 
-	<label for="txtTimeTW">Start time of analysis</label>
-	<input type="text" name="txtTimeRW" id="txtTimeRW" value="0"></input>
+		<label for="chkCompress">Compress unused addresses</label>
+		<input type="checkbox" name="chkCompress" id="chkCompress" checked="true" /><br/>
 
-	<label for="txtCyclesRW">Number of cycles to analyze (dec)</label>
-	<input type="text" name="txtCyclesRW" id="txtCyclesRW" value="50000"></input>
+		<label for="txtTimeTW">Start time of analysis</label>
+		<input type="text" name="txtTimeRW" id="txtTimeRW" value="0"></input>
 
+		<label for="txtCyclesRW">Number of cycles to analyze (dec)</label>
+		<input type="text" name="txtCyclesRW" id="txtCyclesRW" value="50000"></input>
 
 	</fieldset>
 

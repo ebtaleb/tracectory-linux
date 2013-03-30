@@ -10,8 +10,11 @@ This is a trace of the program below.
 The purpose of this example is to demonstrate the taint analysis functionality of this tool. Try the following:
 <ul>
 
-<li>Open "taint graph" from below and enter 403064 to the address field. You will see how the printf function processes the format string.</li>
-<li>You may try also memory access overview tool, but it does not show anything interesting as it observes only direct memory accesses.</li>
+<li>Open <i>taint visualization</i>  from below and enter 403064 to the address field. You will see how the printf function processes the format string.</li>
+<li>You may also try the memory access overview tool. It shows nothing of interest if used on the original format string, but shows that the temporary buffer 4825A0 is read again when printed to the screen.</li>
+<li>
+Note also the changes in the memory dump as the temporary buffer is being filled.
+</li>
 </ul>
 
 <table border="1">

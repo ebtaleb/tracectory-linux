@@ -16,7 +16,7 @@ traces = {
 traces['memcrypt'].memDumpAddr = 0x404050;
 traces['t206'].memDumpAddr = 2771222;
 traces['formatstring'].memDumpAddr = 0x4825A0;
-defaultTrace = "memcrypt"
+defaultTrace = "formatstring"
 
 def parseExpr(x):
 	return int(x, 16)
@@ -167,19 +167,18 @@ class GuiServer(object):
 
 		return json.dumps( {'status' : 'ok' } )
 
-	def memoryAccessEvents(self, address, bytes, time, cycles):
+	def memoryAccessEvents(self, address, bytes, time, cycles, compress):
 		target = getTrace()
-#		address = int(address)
-#		time = int(time)
 		address = parseExpr(address)
 		time = int(time)
 		bytes = int(bytes)
 		memRange = range(address, address + bytes)
 		cycles = int(cycles)
+		compress = bool(int(compress))
 
-		n = len(memRange)
+		rangeSize = len(memRange)
 		#We trust that there are not more than one million memory accesses
-		complexity = n * 20 + cycles
+		complexity = rangeSize * 20 + cycles
 		if complexity > 500000:
 			return json.dumps({ 'status' : 'error',
 			'error' : 'Estimated complexity exceeds server bounds, rejected!'})
@@ -189,10 +188,15 @@ class GuiServer(object):
 			mh = target.getMemoryHistory()
 			#evts = mh.listMemoryEvents(range(0x404050,0x404050 + 16), 0, 1000)
 			evts = mh.listMemoryEvents(memRange, time, time + cycles)
+		
+		if compress:
+			evts, newIndexes = mh.compressEventList(evts)
+			rangeSize = len(newIndexes)
+
 		return json.dumps(
 			{'status' : 'ok',
 		 	 'graph' : evts,
-			 'rangeSize' : len(memRange)
+			 'rangeSize' : rangeSize
 			}, indent = 4)
 	def getReadsAndWrites(self, time):
 		time = int(time)

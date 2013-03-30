@@ -173,6 +173,25 @@ class MemoryHistory:
 			result.append( (curTime, eventsByTime[curTime] ))
 		return result
 
+	def compressEventList(self, eventList):
+		"""Remove all references to memory locations that were not present in the
+		   observed time slice"""
+		seenAddrs = set()
+		for curRow in eventList:
+			for curCol in curRow[1]:
+				seenAddrs.add(curCol[0])
+		
+		#Create a dict that maps old addresses to compressed values
+		sortedAddrs = list(sorted(list(seenAddrs)))
+		mapDict = dict( (sortedAddrs[i], i) for i in xrange(len(sortedAddrs)))
+		compressedList = []
+
+		#Apply the dict transform to each event
+		for curRow in eventList:
+			newCols = [ (mapDict[x[0]], x[1]) for x in curRow[1]]
+			compressedList.append( (curRow[0], newCols) )
+		return compressedList, sortedAddrs
+
 	def getRW(self, changeMatrix):
 		reads, writes = set(), set()
 		for dst, sources in changeMatrix.items():
