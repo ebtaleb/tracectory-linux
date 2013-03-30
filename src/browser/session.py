@@ -11,8 +11,13 @@ class TargetTrace:
 		self.dataflowTraceNew = DataFlow(self.newDB)
 		self.memDumpAddr = 1
 		self.mh = MemoryHistory(self)
+
+		#We aren't thread-safe, must btarget.getLock() all DB access for each request :(
+		self.lock = Lock() 
 	def getMaxTime(self):
 		return int(self.oldDB.Get("maxTime"))	
+	def getLock(self):
+		return self.lock
 	def getDataflowTracer(self, new = False):
 		if not new:
 			return self.dataflowTrace

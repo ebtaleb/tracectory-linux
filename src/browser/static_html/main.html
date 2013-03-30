@@ -23,9 +23,12 @@
   #instrContents {float: left; font-family:monospace; font-size: 8pt; }
   #cpuState {float: left; font-family:monospace; font-size: 8pt; }
   #cpuState2 {float: left; font-family:monospace; font-size: 8pt; }
+  #memoryLinks {left-padding: 150px; float: left;}
   .description { font-size: 10pt; }
   .smallButton { font-size: 10pt; }
  .aTop { font-size: 10pt; }
+ .readMemLink {color: green; font-family: monospace;  }
+ .writeMemLink {color: red; font-family: monospace;}
   </style>
 </head>
 <body>
@@ -77,27 +80,27 @@
 		<div>
 		<textarea id="instrContents" rows="30" cols="40"></textarea>
 		<textarea id="cpuState" rows="30" cols="40"></textarea>
-		<textarea id="cpuState2" rows="30" cols="40"></textarea>
+		<!-- <textarea id="cpuState2" rows="30" cols="40"></textarea> -->
+		<div id="memoryLinks"></div>
 		</div>
 	</div>
-	<h3 class="aTop">Memory overview: Show direct memory accesses</h3>
+	<h3 class="aTop">Memory overview: Visualize direct memory accesses</h3>
 	<div id="rwGraph" class="ui-widget-content">
 		<p class="description">
-			This view is used to graph all memory reads and writes
-			in a given memory range. Only direct accesses are graphed.<br/>
-			Complexity: O(n log m + n log n + C), where n = number of memory locations; m = maximum memory oprerations to a single location;  C = number of items in graph
+			This view is used to visualize all memory reads and writes accessing a given memory range. Read accesses are colored green and write accesses red.<br/>
+			Computational complexity: O(n log m + n log n + C), where n = number of memory locations; m = maximum number of memory oprerations to a single location in the range;  C = size of output i.e. the amount of squares 
 		</p>
 		<button id="btnRW">Draw</button>
 		<div id="rwGraphCanvas"></div>
 	</div>
 
-	<h3 class="aTop">Taint graph: (file format/structure RE)</h3>
+	<h3 class="aTop">Taint visualization: (file format/structure RE)</h3>
 	<div id="readGraph" class="ui-widget-content">
 		<p class="description">
-		This mode of analysis works as follows. We begin by marking a certain memory range of interest as "tainted". Thereafter XXXX instructions are traced to determine if they access tainted regions. If an instruction accesses a tainted value, dataflow analysis is used to mark the regions affected by this data tainted as well. Moreover, any access to a tainted value is traced back to the original memory location and is used to draw the graph. The main use case is to investigate unknown file formats / data structures.
+		This mode of analysis works as follows. We begin by marking a certain memory range of interest as "tainted". Thereafter 10 000 instructions are traced to determine if they access tainted regions. If an instruction accesses a tainted value, dataflow analysis is used to mark the regions affected by this data tainted as well. Moreover, any access to a tainted value is traced back to the original memory location and this information is then used to draw the graph. The main use case is to investigate unknown file formats / data structures.
 		</p>
 	<p class ="description">
-		The y axis represents time and is compressed so that each access to the exact same set of bytes constitutes only one "time step". Color is determined based on a hash of instruction pointer values during times of access. Same color thus indicates the same set of instructions. The x axis represents memory addresses. Complexity: O(n), where n = number of instructions, large constant factor
+		The y axis represents time and is compressed so that each access to the exact same set of bytes constitutes only one "time step". Color is determined based on a hash of instruction pointer values during times of access. Same color thus indicates the same set of instructions. The x axis represents memory addresses. Complexity: O(n), where n = number of instructions/cycles, the constant factor is large.
 	</p>
 		<button id="btnForwardTaint">Draw</button>
 		<div id="readGraphCanvas"></div>
@@ -127,10 +130,10 @@
 	<input type="text" name="txtAddressRW" id="txtAddressRW"></input>
 
 	<label for="txtBytesRW">Byte count (dec)</label>
-	<input type="text" name="txtBytesRW" id="txtBytesRW" value="64"></input>
+	<input type="text" name="txtBytesRW" id="txtBytesRW" value="100"></input>
 
 	<label for="txtTimeTW">Start time of analysis</label>
-	<input type="text" name="txtTimeRW" id="txtTimeRW"></input>
+	<input type="text" name="txtTimeRW" id="txtTimeRW" value="0"></input>
 
 	<label for="txtCyclesRW">Number of cycles to analyze (dec)</label>
 	<input type="text" name="txtCyclesRW" id="txtCyclesRW" value="50000"></input>
@@ -153,7 +156,7 @@
 
 
 	<label for="txtTime">Start time of analysis</label>
-	<input type="text" name="txtTime" id="txtTime"></input>
+	<input type="text" name="txtTime" id="txtTime" value="0"></input>
 
 	</fieldset>
 	</form>

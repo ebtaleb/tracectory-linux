@@ -38,7 +38,7 @@ function byteToHex(b){
 var lastMemAddr = 2771222;
 function refreshMemory(address, time){
 var params = {"address" : address, 'time' : time};	
-$.getJSON("/getMemJson", params).done(
+$.getJSON("/memory/getMemJson", params).done(
 	function(data){
 		var bytes = data['bytes'];
 		var times = data['times'];
@@ -84,7 +84,7 @@ $.getJSON("/getMemJson", params).done(
 
 
 function refreshInstructions(time){
-	$.getJSON("/getInstructions", {'time' : time}).done(
+	$.getJSON("/cpu/getInstructions", {'time' : time}).done(
 		function(data){
 			var output = '';
 			var instrs = data['disasm'];
@@ -95,16 +95,57 @@ function refreshInstructions(time){
 				output += "\n";
 			}	
 			$("#instrContents").html(output);
-			$("#cpuState").text(data['dump']);
-			$("#cpuState2").text(data['dump2']);
+			$("#cpuState").text(data['dump2'] + "\n" + data['dump']);
 		}
 
+	);
+
+	$.getJSON("/memory/getRW", {'time' : time}).done(
+		function(data){
+			//Reads
+			readHtml = ""; writeHtml ="";
+			if(data['reads'].length != 0){
+				readHtml = "Read:<ul>\n";
+				for(i = 0; i < data['reads'].length; i++){
+					prevWrite = data['reads'][i]['prevWrite'];
+					readHtml += "<li class=\"readMemLink\">";
+					readHtml += formatDword(data['reads'][i]['addr']);	
+					if(prevWrite != null){
+						readHtml += " <a href=\"javascript:moveToTime(" 
+						readHtml += prevWrite + ")\">";
+						readHtml += "&lt;- previous write</a>"
+					}
+					readHtml += "</li>\n";
+				}
+				readHtml += "</ul>";
+			}
+
+			if(data['writes'].length != 0){
+				writeHtml = "Written:<ul>\n";
+				for(i = 0; i < data['writes'].length; i++){
+
+					nextRead = data['writes'][i]['nextRead'];
+					writeHtml += "<li class=\"writeMemLink\">";
+					writeHtml += formatDword(data['writes'][i]['addr']);	
+					if(nextRead != null){
+						writeHtml += " <a href=\"javascript:moveToTime(" 
+						writeHtml += nextRead + ")\">";
+						writeHtml += "next read -&gt;</a>"
+					}
+
+					writeHtml += "</li>\n";
+				}
+				writeHtml += "</ul>";
+			}
+
+			$("#memoryLinks").html(readHtml + writeHtml);
+		}
 	);
 }
 
 
 
-function updateSliderFromDialog(){
+function onClickJump(){
 	var newTime = $("#txtTargetTime").val();
 	$("#timeslider").slider("value",newTime);
 
@@ -147,7 +188,7 @@ function memClick(address, time){
 
 function refreshGraph(address, time){
 	var params =  {'time' : time, 'address': address};
-	$.getJSON("/dataflow", params).done(
+	$.getJSON("/taint/dataflow", params).done(
 	 function(data){
 		$("#accordion").accordion( { active: 4});
 		var svg = Viz(data['graph'], "svg");
@@ -185,6 +226,13 @@ function init(){
 	$("#timeslider").slider("value",0);
 }
 
+
+function onMemSetClick(){
+	lastMemAddr = parseInt($("#txtMemAddr").val(),16);
+	refreshMemory(lastMemAddr, $("#timeslider").slider("value"));
+
+}
+
 function initDialogs(){
 	$("#jumpToForm").dialog( { 
 		autoOpen: false, 
@@ -192,13 +240,13 @@ function initDialogs(){
 		open: function(){
 		    $("#jumpToForm").keypress(function(e) {
 		      if (e.keyCode == $.ui.keyCode.ENTER) {
-			updateSliderFromDialog();
+			onClickJump();
 			return false;
 		      }
 		    });
 		},
 		buttons: {
-			"Jump" : updateSliderFromDialog,
+			"Jump" : onClickJump,
 			"Close" : function() {
 				$(this).dialog("close");
 			}
@@ -210,17 +258,14 @@ function initDialogs(){
 		open: function(){
 		    $("#dlgSetMemAddr").keypress(function(e) {
 		      if (e.keyCode == $.ui.keyCode.ENTER) {
-			updateSliderFromDialog();
+			onMemSetClick();
 			return false;
 		      }
 		    });
 		},
 
 		buttons: {
-			"OK" : function(){
-				lastMemAddr = parseInt($("#txtMemAddr").val(),16);
-				refreshMemory(lastMemAddr, $("#timeslider").slider("value"));
-			},
+			"OK" : function(){	onMemSetClick();	},
 			"Close" : function() { 	$(this).dialog("close"); 	}
 
 		}
@@ -246,7 +291,7 @@ function fwdTaintDlg(){
 		open: function(){
 		    $("#dlgForwardTaint").keypress(function(e) {
 		      if (e.keyCode == $.ui.keyCode.ENTER) {
-			updateSliderFromDialog();
+			fwdTaintOnClick();
 			return false;
 		      }
 		    });
@@ -275,7 +320,7 @@ function initRwGraphDlg(){
 		open: function(){
 		    $("#dlgRWGraph").keypress(function(e) {
 		      if (e.keyCode == $.ui.keyCode.ENTER) {
-			updateSliderFromDialog();
+			rwTraceOnClick();
 			return false;
 		      }
 		    });
@@ -284,7 +329,6 @@ function initRwGraphDlg(){
 
 		buttons: {
 			"Trace & draw" : rwTraceOnClick,
-
 			"Close": function() { $(this).dialog("close"); }
 		}
 		
@@ -315,7 +359,7 @@ function drawReadGraph(address, time){
 				{"text-anchor": "start"});
 	}
 	var params = { 'address' : address, 'time' : time};
-	$.getJSON("/forwardTaint", params).done(
+	$.getJSON("/taint/forwardTaint", params).done(
 	function(response){
 		graph = response['graph'];
 		dataBytes = response['data'];	
@@ -343,6 +387,22 @@ function moveToTime(newTime){
 	$("#timeslider").slider("value",newTime);
 }
 var rwPaper = null;
+
+
+function drawAxis(paper, width, height, xTitle, yTitle){
+	paper.path("M5,5L5," + height +
+		   "L0," + (height - 5) + 
+		   "M5," + height + 
+		   "L10," + (height - 5))
+		.attr({ 'stroke-width' : 2 } );
+	paper.path("M5,5L" + width + ",5"+
+		   "L" + (width-5) + ",0" + "M"+width+",5L"+(width-5)+",10")
+		.attr({'stroke-width' : 2 } );
+	paper.text(10, height/2, yTitle).transform("r90");
+	paper.text(width/2,10, xTitle);
+
+}
+
 function drawRWGraph(address, bytes, time, cycles){
 	var params = {
 			'address' : address,
@@ -372,16 +432,16 @@ function drawRWGraph(address, bytes, time, cycles){
 
 		var rangeSize = response['rangeSize'];
 		ySize = 6;
-		width = rangeSize * 10 + 15;
-		height = events.length * ySize + 15;
-		paper.setSize(width, height);
-
+		width = 10 + rangeSize * 10 + 15;
+		height = 10 + events.length * ySize + 15;
+		paper.setSize(width + 1, height + 1);
+		drawAxis(paper, width, height, "Memaddr", "Time");
 		for(y=0;y<events.length;y++){
 			for(i = 0; i < events[y][1].length; i++){
 				x = events[y][1][i][0];
 				type = events[y][1][i][1];
-				paper.rect(x * 10, y * ySize, 10 , ySize)
-				.attr({"fill" : (type == "W") ? "#f00" : "#eee"})
+				paper.rect(10 + x * 10, 10 + y * ySize, 10 , ySize)
+				.attr({"fill" : (type == "W") ? "#f00" : "#0f0"})
 				.data("time", events[y][0])
 				.click(function(){
 					moveToTime(this.data("time"));

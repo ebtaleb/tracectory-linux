@@ -70,6 +70,7 @@ class MemoryHistory:
 
 	def get(self, address, time):
 		result = self.getWithTime(address,time)
+		if result is None: return None
 		return result[0]
 	def getWithTime(self, address, time):
 		#Plan A: Look up previous write
@@ -173,14 +174,14 @@ class MemoryHistory:
 		return result
 
 	def getRW(self, changeMatrix):
-		reads, writes = set()
+		reads, writes = set(), set()
 		for dst, sources in changeMatrix.items():
 			if str(dst).isdigit():
 				writes.add(int(dst))
 			for src in sources:
 				if str(src).isdigit():
 					reads.add(src)
-		return reads, writes
+		return list(reads), list(writes)
 
 	
 
