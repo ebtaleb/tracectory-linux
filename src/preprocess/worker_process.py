@@ -39,7 +39,7 @@ def analyzeInstruction(eip, regs, memorySpaceStream):
 		instr = instrCache[eip]
 	else:
 		instr = asmbloc.dis_i(x86_mn,memorySpaceStream, eip, symbol_pool)
-		origAffects =  get_instr_expr(instr, 123, [])
+		origAffects =  get_instr_expr(instr, instr.getnextflow(), [])
 		affects = []
 		for a in origAffects:
 			affects += processAffect(a)

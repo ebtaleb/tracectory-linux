@@ -146,10 +146,12 @@ class MemoryHistory:
 		curTime, eip, instr, changeMatrix = traceData
 		for dest, sources in changeMatrix.items():
 			if str(dest) == str(address):
-				#XXX: Add proper data structure
+				#We can deduce the value if there is only one data source
+				if len(sources) > 1: return None
 				source = sources[0]
 			
 				if isinstance(source, str) or isinstance(source, unicode):
+					#XXX: Add proper data structure
 					source = str(source).strip()
 					regName = source[:source.find("_")]
 					index = int(source[source.find("_")+1:])
@@ -158,7 +160,9 @@ class MemoryHistory:
 					fullVal = self.newDF.regs[regName.upper()]
 					return ((fullVal>>index) & 0xff)
 				else:
-					return source
+					#TODO: Likely another memory address, should
+					#we continue tracing?
+					return None
 
 		return None
 

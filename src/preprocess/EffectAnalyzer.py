@@ -90,15 +90,13 @@ def getDataSource(sourceObject, regs, byteNum):
 	elif isinstance(sourceObject, ExprId):
 		bytes = getIdBytes(sourceObject, regs)
 	elif isinstance(sourceObject, int) or isinstance(sourceObject, ExprInt):
+		if isinstance(sourceObject, int): #XXX: Hackish
+			sourceObject = ExprInt(uint32(sourceObject))
+
 		num = sourceObject.arg & 0xffffffffffffffff
 		bytes =  []
 		for i in xrange(0,sourceObject.get_size(),8):
 			bytes.append("const_%d" % ((num>>i)&0xff))
-#	elif isinstance(sourceObject, ExprOp):
-#		res = []
-#		for arg in sourceObject.args:
-#			res += getDataSource(arg, regs, byteNum)
-#		return res
 	elif isinstance(sourceObject, ExprMem):
 		startAddr = sourceObject.arg
 
@@ -106,6 +104,16 @@ def getDataSource(sourceObject, regs, byteNum):
 		addrExpr = expr_simp(sourceObject.arg.replace_expr(toReplaceDict(regs)))
 
 		bytes = [(addrExpr.arg + i) for i in xrange(size)]	
+	elif isinstance(sourceObject, ExprOp):
+
+		res = []
+		for curArg in sourceObject.args:
+			res +=  getDataSource(curArg, regs, byteNum)
+	#	print res, sourceObject.args
+		return res
+	elif isinstance(sourceObject, ExprCond):
+		return getDataSource(sourceObject.src1, regs, byteNum) + \
+		       getDataSource(sourceObject.src2, regs, byteNum)
 	else:
 		#print sourceObject.__class__
 		raise ValueError, sourceObject.__class__
