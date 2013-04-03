@@ -6,13 +6,14 @@ class TargetTrace:
 	def __init__(self, saveName):
 		self.oldDB = leveldb.LevelDB("db/%s_oldEngine" % saveName)
 		self.newDB = leveldb.LevelDB("db/%s_newEngine" % saveName )
-		self.dataflowTrace = DataFlow(self.oldDB)
+		self.dataflowTrace = DataFlow(self.oldDB, self)
 		self.saveName = saveName
-		self.dataflowTraceNew = DataFlow(self.newDB)
+		self.dataflowTraceNew = DataFlow(self.newDB, self)
 		self.memDumpAddr = 1
 		self.mh = MemoryHistory(self)
 
-		#We aren't thread-safe, must btarget.getLock() all DB access for each request :(
+		#We aren't thread-safe, must use target.getLock() 
+		#with all DB access for each request :(
 		self.lock = Lock() 
 	def getMaxTime(self):
 		return int(self.oldDB.Get("maxTime"))	

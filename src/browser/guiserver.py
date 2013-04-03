@@ -35,22 +35,21 @@ class CpuApi(object):
 		startTime = max(0,time-10)
 		target = getTrace()
 		t = target.getDataflowTracer()
+		newT = target.getDataflowTracer(new=True)
+
+		dump = dump2 = "{}"
 		with target.getLock():
-			t.seek(startTime)
 			result = {'disasm' : []}
 
-			for data in t.iterate():
-				curTime, eip, instr, changeMatrix = data
-				cleanAsm = instr
+			for cycle in t.iterateCycles(startTime):
+				if cycle.getTime() > time: break
+				cleanAsm = cycle.getDisasm()
 				while "  " in cleanAsm:
 					cleanAsm = cleanAsm.replace("  "," ")
-				result['disasm'].append((curTime, eip, cleanAsm))
-				if data[0] == time: break
-			t.seek(time)
-			newT = target.getDataflowTracer(new=True)
-			newT.seek(time)
-			dump = json.dumps(json.loads(t.dumpState()), indent=4)
-			dump2 = json.dumps(json.loads(newT.dumpState()), indent=4)
+				result['disasm'].append((cycle.getTime(), cycle.getPC(), cleanAsm))
+			
+			if t.getCycle(time) is not None: dump = t.getCycle(time).jsonDump()
+			if newT.getCycle(time) is not None: dump2 = newT.getCycle(time).jsonDump()
 		result['dump'] = "%s" % dump
 		result['dump2'] = "%s" % dump2
 		return json.dumps(result)
@@ -85,14 +84,14 @@ class MemoryApi(object):
 	def getRW(self, time):
 		target = getTrace()
 		time = int(time)
-		result = {}
-		reads = []
-		writes = []
+		result, reads, writes = {}, [], []
 		with target.getLock():
 			mh = target.getMemoryHistory()
 			dfTracer = target.getDataflowTracer()
-			time, eip, disasm, matrix = dfTracer.getAt(time)
-			listOfReads, listOfWrites = mh.getRW(matrix)
+			cycle = dfTracer.getCycle(time)
+			if cycle is None:
+				return json.dumps( { 'status' : 'error' } )
+			listOfReads, listOfWrites = cycle.getMemoryRW()
 			for read in listOfReads:	
 				reads.append( { 'addr' : read,
 						'prevWrite' : mh.previousWrite(read, time)
@@ -103,7 +102,7 @@ class MemoryApi(object):
 						 'nextRead' : mh.nextRead(write, time)
 						})
 			
-		return json.dumps( { 'reads' : reads, 'writes' : writes } )
+		return json.dumps( { 'status' : 'ok', 'reads' : reads, 'writes' : writes } )
 
 class TaintApi(object):
 	@cherrypy.expose
@@ -186,21 +185,16 @@ class GuiServer(object):
 
 		with target.getLock():
 			mh = target.getMemoryHistory()
-			#evts = mh.listMemoryEvents(range(0x404050,0x404050 + 16), 0, 1000)
 			evts = mh.listMemoryEvents(memRange, time, time + cycles)
 		
-		if compress:
-			evts, newIndexes = mh.compressEventList(evts)
-			rangeSize = len(newIndexes)
+		evts, newIndexes = mh.memoryGraph(evts, compress = compress)
+		if compress: rangeSize = len(newIndexes)
 
 		return json.dumps(
 			{'status' : 'ok',
 		 	 'graph' : evts,
 			 'rangeSize' : rangeSize
 			}, indent = 4)
-	def getReadsAndWrites(self, time):
-		time = int(time)
-	
 
 	memoryAccessEvents.exposed = True
 	index.exposed = True

@@ -2,14 +2,43 @@ from datastore.DataFlow import *
 from taint import *
 from collections import defaultdict
 
+
+class MemoryAccess:
+	def __init__(self, history, address, time, readOrWrite):
+		"""Not meant to be initialized from outside MemoryHistory"""
+		self.history = history
+		self.address = address
+		self.time = time
+		self.readOrWrite = readOrWrite
+	def getType(self): return self.readOrWrite
+	def getAddress(self): return self.address
+	def getTime(self): return self.time
+	def getValue(self):
+		if self.readOrWrite == "R":
+			return self.history.getByteReadAt(self.address, self.time)
+		elif self.readOrWrite == "W":
+			return self.history.getByteWrittenAt(self.address, self.time)
+		else:
+			raise ValueError, "Inconsistent state / neither read nor write"
+	def previousWrite(self):
+		t = self.history.previousWrite(self.address, self.time)
+		if t is None: return None
+		return MemoryAccess(self.history, self.address, t, "W")
+	def nextRead(self):
+		t = self.history.nextRead(self.address, self.time)
+		if t is None: return None
+		return MemoryAccess(self.history, self.address, t, "R")
+
+	def __repr__(self):
+		return "<MemoryAccess: %s%s (t = %d)>" % (self.getType(), self.getAddress(), self.getTime())
+
+
 class MemoryHistory:
 	def __init__(self, target):
 		self.oldDB = target.getDB("old")
 		self.newDB = target.getDB("new")
-		self.trace = DataFlow(self.oldDB)
-		self.newDF = DataFlow(self.newDB)
-		#self.trace = trace
-		#self.mem = mem
+		self.trace = DataFlow(self.oldDB, target)
+		self.newDF = DataFlow(self.newDB, target)
 
 # def readAt(addrOfByte, timeSlot)
 #      - use binary search to find largest i suchthat writtenAt[addr][i]<timeSlot
@@ -19,7 +48,7 @@ class MemoryHistory:
 #     O(log n)
 
 	############# List functions ##########
-	def binSearch(self, listName, value):
+	def __binSearchList(self, listName, value):
 		#Binary search, logarithmic time
 		""" Returns largest x such that list[x]<=value """
 		lower = 0
@@ -44,23 +73,39 @@ class MemoryHistory:
 
 	def __listCount(self, listName): return int(self.oldDB.Get("%s_ctr" % listName))
 	def __getListInt(self, listName, idx): return int(self.oldDB.Get("%s_%d" % (listName,idx)))
+	def __getListValuesInRange(self, listName, minVal, maxVal):
+		lower = self.__binSearchList(listName, minVal)
+		if lower is None: return []
+		lower += 1
+		count = self.__listCount(listName)
+
+		if lower >= count: return []
+		upper = self.__binSearchList(listName, maxVal)
+		if upper is None:
+			#Upper not found but lower found -> upper = max
+			upper = count - 1
+		
+		result = []
+		for i in xrange(lower,upper+1):
+			result.append(self.__getListInt(listName, i))
+		return result
 
 	############# /List functions #########
 	def previousWrite(self, addr, time):
 		key = "write_%d" % addr
-		index = self.binSearch(key, time)
+		index = self.__binSearchList(key, time)
 		if index is None or index == -1: return None
 		return self.__getListInt(key, index)
 	def nextRead(self, addr,time):
 		key = "read_%d" % addr
-		index = self.binSearch(key, time)
+		index = self.__binSearchList(key, time)
 		if index is None: return None
 		if (index+1) >= self.__listCount(key):
 			return None
 		return self.__getListInt(key, index + 1)
 	def nextWrite(self, addr,time):
 		key = "write_%d" % addr
-		index = self.binSearch(key, time)
+		index = self.__binSearchList(key, time)
 		if index is None: return None
 		if (index+1) >= self.__listCount(key):
 			return None
@@ -84,9 +129,8 @@ class MemoryHistory:
 
 		#Plan B: Next read after this unresolvable write
 		readAt=self.nextRead(address, writtenAt)
-
-
-		#XXX: Check that there is no intervening write
+		#Confirm that there is no intervening write that could have changed the value 
+		#in between
 		nextWrite = self.nextWrite(address,writtenAt+1)
 		if nextWrite is not None and nextWrite<readAt:
 			return None
@@ -140,46 +184,44 @@ class MemoryHistory:
 		return -1
 			
 				
-	def getValuesInRange(self, listName, minVal, maxVal):
-		lower = self.binSearch(listName, minVal)
-		if lower is None: return []
-		lower += 1
-		count = self.__listCount(listName)
-
-		if lower >= count: return []
-		upper = self.binSearch(listName, maxVal)
-		if upper is None:
-			#Upper not found but lower found -> upper = max
-			upper = count - 1
-		
-		result = []
-		for i in xrange(lower,upper+1):
-			result.append(self.__getListInt(listName, i))
-		return result
 	def listMemoryEvents(self, byteArray, startTime, endTime):
 		eventsByTime = defaultdict(list)
 		for byteIdx in xrange(0, len(byteArray)):
 			curAddr = byteArray[byteIdx]
 			l = "read_%d" % curAddr
-			for curTime in  self.getValuesInRange(l, startTime, endTime):
-				eventsByTime[curTime].append( (byteIdx, "R"))
+			#XXX: We're using byteIdx although should be using actual address
+			# and doing the conversion elsewhere
+			for curTime in  self.__getListValuesInRange(l, startTime, endTime):
+				eventsByTime[curTime].append( 
+					MemoryAccess(self, byteIdx, curTime, "R")
+				)
 
 			l = "write_%d" % curAddr
-			for curTime in  self.getValuesInRange(l, startTime, endTime):
-				eventsByTime[curTime].append( (byteIdx, "W"))
+			for curTime in  self.__getListValuesInRange(l, startTime, endTime):
+
+				eventsByTime[curTime].append( 
+					MemoryAccess(self, byteIdx, curTime, "W")
+				)
 		keys = eventsByTime.keys()
 		result = []
 		for curTime in sorted(keys):
 			result.append( (curTime, eventsByTime[curTime] ))
 		return result
 
-	def compressEventList(self, eventList):
-		"""Remove all references to memory locations that were not present in the
-		   observed time slice"""
+	def memoryGraph(self, eventList, compress = True):
+		"""If compress is True, removes all references to memory locations that 
+		   were not present in the observed time slice"""
+		if not compress:
+			result = []
+			for time, events in eventList:
+				tuples = [ (x.getAddress(), x.getType()) for x in events]
+				result.append( ( time, tuples) )
+ 			return result, None
+
 		seenAddrs = set()
 		for curRow in eventList:
-			for curCol in curRow[1]:
-				seenAddrs.add(curCol[0])
+			for curAccess in curRow[1]:
+				seenAddrs.add(curAccess.getAddress())
 		
 		#Create a dict that maps old addresses to compressed values
 		sortedAddrs = list(sorted(list(seenAddrs)))
@@ -188,19 +230,9 @@ class MemoryHistory:
 
 		#Apply the dict transform to each event
 		for curRow in eventList:
-			newCols = [ (mapDict[x[0]], x[1]) for x in curRow[1]]
+			newCols = [ (mapDict[x.getAddress()], x.getType()) for x in curRow[1]]
 			compressedList.append( (curRow[0], newCols) )
 		return compressedList, sortedAddrs
-
-	def getRW(self, changeMatrix):
-		reads, writes = set(), set()
-		for dst, sources in changeMatrix.items():
-			if str(dst).isdigit():
-				writes.add(int(dst))
-			for src in sources:
-				if str(src).isdigit():
-					reads.add(src)
-		return list(reads), list(writes)
 
 	
 
