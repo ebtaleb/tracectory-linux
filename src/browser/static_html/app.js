@@ -95,7 +95,7 @@ function refreshCPUView(time){
 				output += "\n";
 			}	
 			$("#instrContents").html(output);
-			$("#cpuState").text(data['dump2'] + "\n" + data['dump']);
+			$("#cpuState").text( data['dump']);
 		}
 
 	);
@@ -151,7 +151,13 @@ function initSlider(){
 		function(data){
 			$("#timeslider").slider("option","max",data["maxTime"]);
 			$("#generalInfo").html(data["infoHtml"]);
+			for(var i = 0; i < data['traces'].length;i++){
+				var name = data['traces'][i];
+				$("#tracesToLoad").append("<li class=\"classy\" id=\"load_" + name + "\"><a href=\"#\">" + name + "</a></li>");
+			}
 			lastMemAddr = data['memDumpAddr'];
+			menuInit();
+
 		}
 	);
 	$("#timeslider").on("slidechange",
@@ -463,7 +469,6 @@ function drawAxis(paper, width, height, xTitle, yTitle){
 
 $ (function() {
 	
-	menuInit();
 	//$( "#graphView" ).draggable().resizable({});
 	//$("#graphView").scroll();
 	//$( "#memView").resizable();

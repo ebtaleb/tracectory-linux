@@ -2,6 +2,11 @@ import leveldb
 from datastore.DataFlow import DataFlow
 import os
 from MemoryHistory import *
+
+#traces['memcrypt'].memDumpAddr = 0x404050;
+#traces['t206'].memDumpAddr = 2771222;
+#traces['formatstring'].memDumpAddr = 0x4825A0;
+
 class TargetTrace:
 	def __init__(self, saveName):
 		if os.path.exists("db/%s_combined" % saveName):
@@ -13,7 +18,11 @@ class TargetTrace:
 		self.dataflowTrace = DataFlow(self.oldDB, self)
 		self.saveName = saveName
 		self.dataflowTraceNew = DataFlow(self.newDB, self)
-		self.memDumpAddr = 1
+		self.memDumpAddr = 0
+		try:
+			self.memDumpAddr = int(self.oldDB.Get("memDumpAddr"))
+		except:
+			pass
 		self.mh = MemoryHistory(self)
 
 		#We aren't thread-safe, must use target.getLock() 

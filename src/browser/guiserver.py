@@ -7,19 +7,20 @@ from session import TargetTrace
 from datastore.DataFlow import *
 from taint import *
 
-traces = {
-	't206'     : TargetTrace("t206_timed"),
-	'memcrypt' : TargetTrace("memcrypt"),
-	'formatstring' : TargetTrace("formatstring"),
-}
+traces  = {}
+for curDb in os.listdir("db/"):
+	if curDb.endswith("_combined"):
+		name = curDb[:curDb.find("_combined")]
+		traces[name] = TargetTrace(name)
 
-traces['memcrypt'].memDumpAddr = 0x404050;
-traces['t206'].memDumpAddr = 2771222;
-traces['formatstring'].memDumpAddr = 0x4825A0;
-defaultTrace = "formatstring"
+if len(traces) == 0:
+	print >>sys.stderr, "No traces found in db/, no point in starting the GUI"
+	print >>sys.stderr, "Create traces using the preprocess tools (see wiki for details)"
+	os.sys.exit(1)
 
-def parseExpr(x):
-	return int(x, 16)
+defaultTrace  = traces.keys()[0]
+
+def parseExpr(x): return int(x, 16)
 
 def getTrace():
 	try:
@@ -35,7 +36,6 @@ class CpuApi(object):
 		startTime = max(0,time-10)
 		target = getTrace()
 		t = target.getDataflowTracer()
-		newT = target.getDataflowTracer(new=True)
 
 		dump = dump2 = "{}"
 		with target.getLock():
@@ -49,9 +49,7 @@ class CpuApi(object):
 				result['disasm'].append((cycle.getTime(), cycle.getPC(), cleanAsm))
 			
 			if t.getCycle(time) is not None: dump = t.getCycle(time).jsonDump()
-			if newT.getCycle(time) is not None: dump2 = newT.getCycle(time).jsonDump()
 		result['dump'] = "%s" % dump
-		result['dump2'] = "%s" % dump2
 		return json.dumps(result)
 
 class MemoryApi(object):
@@ -116,7 +114,6 @@ class TaintApi(object):
 			t = target.getDataflowTracer()
 			mh = target.getMemoryHistory()
 			analyzer = ForwardTaintAnalyzer()
-			#analyzer.mark(0x403064, 0, 3*16 + 1)
 			analyzer.mark(address, 0, dataLen)
 			t.seek(time)
 			res = analyzer.analyze(t)
@@ -157,7 +154,8 @@ class GuiServer(object):
 			return json.dumps( { 
 				'maxTime' : target.getMaxTime(),
 				'memDumpAddr' : target.getMemDumpAddr(),
-				'infoHtml' : target.getInfoHtml()
+				'infoHtml' : target.getInfoHtml(),
+				'traces' : traces.keys()
 			} );
 	def loadTrace(self, trace):
 		if not traces.has_key(trace):
