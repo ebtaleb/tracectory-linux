@@ -1,3 +1,7 @@
+# This file implements the worker processes, which take in lines of trace input,
+# parse it, disassemble the instruction using the memory dump and produce a description
+# of the dataflow of this instruction. This description is sent to the result sink.
+
 import sys
 sys.path.append(".")
 sys.path.append("./src")
@@ -6,6 +10,7 @@ from data_sources import *
 from threading import Lock
 import leveldb
 from time import time as systemtime
+import time 
 from analysis_funcs import *
 #saveName = "t206"
 import multiprocessing
@@ -14,6 +19,9 @@ try:
 	import simplejson as json
 except ImportError:
 	import json
+
+
+def log(s): print time.strftime("%b %d %Y %H:%M:%S"), "[worker, pid=%d]" % os.getpid(), s
 
 def normalize(x):
         if "numpy" in str(x.__class__):
@@ -95,19 +103,23 @@ def subprocessInit(dumpFile, useNewEngine, doSuppressErrors):
 
 	affectCache = {}
 	instrCache = {}
-	print >>sys.stderr, "(pid=%d) Loading memory dump" % (os.getpid())
+	log("Loading memory dump %s " % dumpFile)
 	memorySpace = FossileStream(dumpFile)
 	in_str = bin_stream_file(memorySpace)
 
 import zmq
 def main():
+	
+	#Receive the tasks (trace lines)
 	context = zmq.Context.instance()
 	receive = context.socket(zmq.PULL)
 	receive.connect("tcp://127.0.0.1:5555")
 
+	#Push the results to result sin
 	sendResult = context.socket(zmq.PUSH)
 	sendResult.connect("tcp://127.0.0.1:5556")
 
+	#Receive control commands from the ventilator
 	workerControl = context.socket(zmq.SUB)
 	workerControl.connect("tcp://127.0.0.1:5559")
 	workerControl.setsockopt(zmq.SUBSCRIBE, "")
@@ -117,24 +129,31 @@ def main():
 	poller.register(receive, zmq.POLLIN)
 	while True:
 		socks = dict(poller.poll())
+
+		#Did we get a control message?
 		if socks.get(workerControl) == zmq.POLLIN:
-			dump, newEngine, suppressErrors = workerControl.recv_json()
-
-			print >>sys.stderr, "workerControl",dump
-			subprocessInit(dump, newEngine, suppressErrors)
-
+			message = workerControl.recv_json()
+			log("got control message: " + json.dumps(message))
+			if message['type'] == 'loadDump':
+				dump = message['dump']
+				subprocessInit(dump, True, True)
+			elif message['type'] == 'shutdown':
+				break
+			else:
+				raise ValueError, "Unknown workerControl message"
 			
-		
+		#Did we get a task?	
 		if socks.get(receive) == zmq.POLLIN:
 			curTime, curLine = receive.recv_json()
 			if curTime == -1:
+				#Pass-through message 
 				sendResult.send_json((curTime, curLine))
 			else:
 				try:
 					record = processLine(curLine)
 					sendResult.send_json((curTime, record))
 				except:
-					print "ERROR",curTime
+					log("Exception while processing t=%d" % curTime)
 					sendResult.send_json((curTime, None))
 
 			

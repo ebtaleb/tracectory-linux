@@ -1,3 +1,5 @@
+# This file implements the result sink that collects all results and writes
+# those to the DB.
 import sys
 sys.path.append(".")
 sys.path.append("./src")
@@ -5,13 +7,11 @@ import os
 import leveldb
 from time import time as systemtime
 #from analysis_funcs import *
-import multiprocessing
 import zmq
-import logging
+import time
 
-log = logging.getLogger()
-log.setLevel(logging.INFO)
-log.addHandler(logging.StreamHandler(sys.stdout))
+def log(s):
+	print time.strftime("%b %d %Y %H:%M:%S"),"[result_writer]",s
 try:
 	import simplejson as json
 except ImportError:
@@ -70,7 +70,8 @@ def main(db):
 			
 	db.Write(batch, sync = True)
 	db.Put("maxTime", str(biggestSeen))
-	log.info("Received all info!")
+	log("All cycles written to DB")
+	log("Indexing memory writes...")
 
 	#Write indexing of memory accesses
 	startTime = systemtime()
@@ -98,7 +99,7 @@ def main(db):
 	db.Write(batch)
 	writeListCounts(db)	
 	endTime = systemtime()
-	log.info("%f per second" % (entriesSent / (endTime-startTime)))
+	log("Indexing finished, speed: %f per second" % (entriesSent / (endTime-startTime)))
 	controlSender.send("FINISH")
 
 def waitForControl():
@@ -107,17 +108,21 @@ def waitForControl():
 	socket.bind("tcp://127.0.0.1:5558")
 	msg =  socket.recv_json()
 	if msg['status'] == 'finished':
-		print "Finished"
+		log("Received signal to terminate")
 		return None
 
 	db = leveldb.LevelDB(msg['db'])
 	socket.send("OK")
 	return db
 
-if __name__ == '__main__':
+def loop():
+
 	while True:
 		db = waitForControl()
 		if db is None:
 			break
 		main(db)
 		del db
+
+if __name__ == '__main__':
+	loop()	
