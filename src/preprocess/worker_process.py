@@ -131,6 +131,7 @@ def main():
 					sendResult.send_json((curTime, record))
 				except:
 					print "ERROR",curTime
+					sendResult.send_json((curTime, None))
 
 			
 

@@ -44,23 +44,23 @@ def main(db):
 	controlSender.bind("tcp://127.0.0.1:5557")
 
 	t = 0 
-	lastTime = -1
+	entriesSent = -1
 	biggestSeen = -1
-	#XXX: There is a race condition here and we may terminate too early!
-	#     The results can arrive in mixed order -> 
-	#     the receipt of last one != receipt of all
+
+	#The entriesSent change should fix a race condition, not tested yet
 
 	batch = leveldb.WriteBatch()
-
-	while (lastTime == -1) or (biggestSeen<lastTime):
+	count = 0
+	while (entriesSent == -1) or (count<entriesSent):
 		#Receive the data to buffer
 		t, record = receive.recv_json()
 		if t == -1:
 			#This is a direct message from ventilator
 			#that indicates the last t value
 			#we should see.
-			lastTime = record['lastTime']	
+			entriesSent = record['entriesSent']	
 			continue
+		count += 1
 		biggestSeen = max(biggestSeen, t)
 		if record is not None:	batch.Put("instr_%d" % t, json.dumps(record))
 
@@ -76,7 +76,7 @@ def main(db):
 	startTime = systemtime()
 
 	batch = leveldb.WriteBatch()
-	for t in xrange(0, lastTime+1):
+	for t in xrange(0, entriesSent):
 		try:
 			recordJson = db.Get("instr_%d" % t)
 		except KeyError:
@@ -98,7 +98,7 @@ def main(db):
 	db.Write(batch)
 	writeListCounts(db)	
 	endTime = systemtime()
-	log.info("%f per second" % (lastTime / (endTime-startTime)))
+	log.info("%f per second" % (entriesSent / (endTime-startTime)))
 	controlSender.send("FINISH")
 
 def waitForControl():

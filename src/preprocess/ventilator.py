@@ -7,7 +7,6 @@ from threading import Lock
 import leveldb
 from time import time as systemtime
 from analysis_funcs import *
-#saveName = "t206"
 import multiprocessing
 import time
 
@@ -52,7 +51,7 @@ def delegator(traceFile, dumpFile, newEngine, suppressErrors, dbName):
 		sendSocket.send_json((t, line))
 		t += 1
 
-	sendSocket.send_json( (-1, { 'lastTime' : t - 1 }))
+	sendSocket.send_json( (-1, { 'entriesSent' : t  }))
 	#sendSocket.send_json("READY")
 
 	print "SENT!"
