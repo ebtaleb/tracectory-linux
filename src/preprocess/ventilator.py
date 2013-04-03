@@ -65,13 +65,13 @@ def delegator(traceFile, dumpFile, newEngine, suppressErrors, dbName):
 
 
 def process(traceFile, dumpFile):
-	print >>sys.stderr, "Using old engine"
-	dbName = "./db/%s_oldEngine" % saveName
-	delegator(traceFile, dumpFile, False, False,  dbName)
-	print >>sys.stderr, "Using new engine"
-	newDb = "./db/%s_newEngine" % saveName
-	delegator(traceFile, dumpFile, True,  True, newDb)
-	dbOpenSend.send_json( { 'status' : 'finished' } )
+	print >>sys.stderr, "Starting..."
+	dbName = "./db/%s_combined" % saveName
+	delegator(traceFile, dumpFile, True, True,  dbName)
+	#print >>sys.stderr, "Using new engine"
+	#newDb = "./db/%s_newEngine" % saveName
+	#delegator(traceFile, dumpFile, True,  True, newDb)
+	#dbOpenSend.send_json( { 'status' : 'finished' } )
 
 
 if __name__ == '__main__':

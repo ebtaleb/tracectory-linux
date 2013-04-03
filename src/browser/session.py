@@ -4,8 +4,12 @@ import os
 from MemoryHistory import *
 class TargetTrace:
 	def __init__(self, saveName):
-		self.oldDB = leveldb.LevelDB("db/%s_oldEngine" % saveName)
-		self.newDB = leveldb.LevelDB("db/%s_newEngine" % saveName )
+		if os.path.exists("db/%s_combined" % saveName):
+			self.oldDB = leveldb.LevelDB("db/%s_combined" % saveName)
+			self.newDB = self.oldDB
+		else:
+			self.oldDB = leveldb.LevelDB("db/%s_oldEngine" % saveName)
+			self.newDB = leveldb.LevelDB("db/%s_newEngine" % saveName )
 		self.dataflowTrace = DataFlow(self.oldDB, self)
 		self.saveName = saveName
 		self.dataflowTraceNew = DataFlow(self.newDB, self)

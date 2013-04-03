@@ -38,15 +38,18 @@ def analyzeInstruction(eip, regs, memorySpaceStream):
 		affectCache[eip] = affects
 		instrCache[eip] = instr
 
-	if newEngine:
-		try:
-			changeMatrix = convertToUnikey(affects, regs)
-		except:
-			changeMatrix = None
-			if not suppressErrors:
-				raise
-	else:
+	engineVersion = 2
+	try:
+		changeMatrix = convertToUnikey(affects, regs)
+	except:
+		changeMatrix = None
+		if not suppressErrors:
+			raise
+
+	#Use old engine
+	if changeMatrix is None:
 		changeMatrix = calcUnikeyRelations(affects, regs)
+		engineVersion = 1
 
 	if changeMatrix is None: return None
 
@@ -59,6 +62,7 @@ def analyzeInstruction(eip, regs, memorySpaceStream):
 	#Build a record of the instruction and return it
 	record = { 'PC' : eip,
 		  'disassembly' : str(instr),
+		  'engineVersion' : engineVersion,
 		  'regs' : regs,
 		  'changes' : newMatrix }
 	return record
