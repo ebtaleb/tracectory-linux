@@ -51,7 +51,7 @@ class ForwardTaintAnalyzer:
 		taintDict = self.taintDict
 		self.results = []
 		count = 0
-		for entry in t.iterate():
+		for entry in t.oldIterate():
 			if count > MAX_STEPS: break
 			curTime, eip, instr, changeMatrix = entry
 			count += 1
@@ -147,7 +147,7 @@ class BackwardDataFlow:
 		backtrace.seek(time)
 		#XXX: Migrate to new engine when it gets better
 		i = 0
-		for entry in backtrace.iterate(delta = -1):
+		for entry in backtrace.oldIterate(delta = -1):
 
 			if i>MAX_TRACE: break
 			i += 1

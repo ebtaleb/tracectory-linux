@@ -4,6 +4,10 @@ from collections import defaultdict
 
 
 class MemoryAccess:
+	"""MemoryAccess objects represent a memory access (read/write) at a certain
+	   point in time. Instance methods can ge used to retrieve the address and 
+	   time, try to resolve the value written/read or navigate to next/previous
+	   writes to the same location"""
 	def __init__(self, history, address, time, readOrWrite):
 		"""Not meant to be initialized from outside MemoryHistory"""
 		self.history = history
@@ -39,15 +43,7 @@ class MemoryHistory:
 	def __init__(self, target):
 		self.oldDB = target.getDB("old")
 		self.newDB = target.getDB("new")
-		self.trace = DataFlow(self.oldDB, target)
 		self.newDF = DataFlow(self.newDB, target)
-
-# def readAt(addrOfByte, timeSlot)
-#      - use binary search to find largest i suchthat writtenAt[addr][i]<timeSlot
-#      - seek to writtenAt[addr][i], if mov -> can produce result
-#      - alternatively try seeking the next read 
-#       we could also return the time when this was last written to
-#     O(log n)
 
 	############# List functions ##########
 	def __binSearchList(self, listName, value):
@@ -66,9 +62,9 @@ class MemoryHistory:
 				lower = middle
 		if upper == -1:
 			return -1
-		upperVal = int(self.oldDB.Get("%s_%d" % (listName, upper)))
+		upperVal = self.__getListInt(listName, upper)
 		if upperVal <= value: return upper
-		lowerVal = int(self.oldDB.Get("%s_%d" % (listName, lower)))
+		lowerVal = self.__getListInt(listName, lower)
 		if lowerVal <= value: return lower
 
 		return -1
@@ -143,9 +139,9 @@ class MemoryHistory:
 			return value, -1
 		
 	def getByteWrittenAt(self, address, writtenAt):
-		traceData = self.newDF.getAt(writtenAt)
-		if traceData is None: return None
-		curTime, eip, instr, changeMatrix = traceData
+		cycle = self.newDF.getCycle(writtenAt)
+		if cycle is None: return None
+		changeMatrix = cycle.getEffects()
 		for dest, sources in changeMatrix.items():
 			if str(dest) == str(address):
 				#We can deduce the value if there is only one data source
@@ -159,7 +155,7 @@ class MemoryHistory:
 					index = int(source[source.find("_")+1:])
 					if regName == "const":
 						return index
-					fullVal = self.newDF.regs[regName.upper()]
+					fullVal = cycle.regs[regName.upper()]
 					return ((fullVal>>index) & 0xff)
 				else:
 					#TODO: Likely another memory address, should
@@ -169,13 +165,10 @@ class MemoryHistory:
 		return None
 
 	def getByteReadAt(self, address, readAt):
-		self.newDF.seek(readAt)
-		iterator = self.newDF.iterate()
-		curTime, eip, instr, changeMatrix = iterator.next()
-
-		iterator.next() #One step to make resgistry references refer
-				#to values AFTER this instruction
-		for dest, sources in changeMatrix.items():
+		iterator = self.newDF.iterateCycles(readAt)
+		readCycle = iterator.next()
+		nextCycle = iterator.next()  #We need reg values AFTER the read cycle
+		for dest, sources in readCycle.getEffects().items():
 			if len(sources) != 1: continue
 			if str(sources[0]) != str(address):  continue
 			#We've found out that the data was written to dest
@@ -184,7 +177,7 @@ class MemoryHistory:
 
 			regName = dest[:dest.find("_")]
 			index = int(dest[dest.find("_")+1:])
-			fullVal = self.newDF.regs[regName.upper()]
+			fullVal = nextCycle.regs[regName.upper()]
 			val = (fullVal>>index)&0xff
 			return val
 		return -1

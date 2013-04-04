@@ -13,6 +13,7 @@ except ImportError:
 
 
 class Cycle:
+	""" Represents the execution of one instructions at a certain point of time.  """
 	def __init__(self, cpu, cycleNum):
 		self.time = cycleNum
 		self.cpu = cpu
@@ -38,9 +39,6 @@ class Cycle:
 					reads.add(src)
 		return list(reads), list(writes)
 
-
-
-
 class DataFlow:
 	def __init__(self, db, parentTrace):
 		self.db = db
@@ -58,7 +56,7 @@ class DataFlow:
 	def getCycle(self, time):
 		try: return Cycle(self, time)
 		except KeyError: return None
-	def iterate(self, delta = 1):
+	def oldIterate(self, delta = 1):
 		while self.time>=0 and self.time<=self.maxTime:
 			result = self.getAt(self.time)
 			if result is not None:
