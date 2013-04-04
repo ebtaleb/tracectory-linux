@@ -23,7 +23,7 @@ class TargetTrace:
 			self.memDumpAddr = int(self.oldDB.Get("memDumpAddr"))
 		except:
 			pass
-		self.mh = MemoryHistory(self)
+		self.memory = MemoryHistory(self)
 
 		#We aren't thread-safe, must use target.getLock() 
 		#with all DB access for each request :(
@@ -52,4 +52,4 @@ class TargetTrace:
 		return open(filename).read()
 
 	def getMemoryHistory(self):
-		return self.mh
+		return self.memory

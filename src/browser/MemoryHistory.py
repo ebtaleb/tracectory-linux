@@ -28,9 +28,11 @@ class MemoryAccess:
 		t = self.history.nextRead(self.address, self.time)
 		if t is None: return None
 		return MemoryAccess(self.history, self.address, t, "R")
+	def isRead(self):  return  self.readOrWrite == "R"
+	def isWrite(self): return self.readOrWrite == "W"
 
 	def __repr__(self):
-		return "<MemoryAccess: %s%s (t = %d)>" % (self.getType(), self.getAddress(), self.getTime())
+		return "<MemoryAccess: %s%08X (t = %d)>" % (self.getType(), int(self.getAddress()), self.getTime())
 
 
 class MemoryHistory:
@@ -188,37 +190,39 @@ class MemoryHistory:
 		return -1
 			
 				
-	def listMemoryEvents(self, byteArray, startTime, endTime):
+	def iterMemoryEvents(self, byteArray, startTime, endTime, groupByTime = False):
+		""" Iterates all memory reads/writes between startTime and endTime to/from
+		    memory locations in byteArray"""
 		eventsByTime = defaultdict(list)
 		for byteIdx in xrange(0, len(byteArray)):
 			curAddr = byteArray[byteIdx]
 			l = "read_%d" % curAddr
-			#XXX: We're using byteIdx although should be using actual address
-			# and doing the conversion elsewhere
 			for curTime in  self.__getListValuesInRange(l, startTime, endTime):
 				eventsByTime[curTime].append( 
-					MemoryAccess(self, byteIdx, curTime, "R")
+					MemoryAccess(self, curAddr, curTime, "R")
 				)
 
 			l = "write_%d" % curAddr
 			for curTime in  self.__getListValuesInRange(l, startTime, endTime):
-
 				eventsByTime[curTime].append( 
-					MemoryAccess(self, byteIdx, curTime, "W")
+					MemoryAccess(self, curAddr, curTime, "W")
 				)
-		keys = eventsByTime.keys()
-		result = []
-		for curTime in sorted(keys):
-			result.append( (curTime, eventsByTime[curTime] ))
-		return result
+		if groupByTime:
+			keys = eventsByTime.keys()
+			result = []
+			for curTime in sorted(keys):
+				yield (curTime, eventsByTime[curTime] )
+		else:
+			for curTime in sorted(eventsByTime.keys()):
+				for event in eventsByTime[curTime]: yield event
 
-	def memoryGraph(self, eventList, compress = True):
+	def memoryGraph(self, eventList, compress = True, minAddr = 0):
 		"""If compress is True, removes all references to memory locations that 
 		   were not present in the observed time slice"""
 		if not compress:
 			result = []
 			for time, events in eventList:
-				tuples = [ (x.getAddress(), x.getType()) for x in events]
+				tuples = [ (x.getAddress() - minAddr, x.getType()) for x in events]
 				result.append( ( time, tuples) )
  			return result, None
 

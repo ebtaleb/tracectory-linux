@@ -1,3 +1,5 @@
+#This file contains the new version of the analysis functions.
+#The script uses this whenever possible.
 import os, sys
 import struct
 from elfesteem import *
@@ -16,6 +18,9 @@ import pickle
 #current = pickle.load(open("affect.p", "rb"))
 
 def toReplaceDict(origRegs):
+	""" Builds a dictionary that is used to replace registers with their
+	values e.g. when calculating the memory addresses each instructions
+	accesses"""
 	result = {}
 	result[miasm.arch.ia32_sem.eax] = ExprInt(uint32(origRegs["EAX"]))
 	result[miasm.arch.ia32_sem.ebx] = ExprInt(uint32(origRegs["EBX"]))
@@ -25,15 +30,12 @@ def toReplaceDict(origRegs):
 	result[miasm.arch.ia32_sem.ebp] = ExprInt(uint32(origRegs["EBP"]))
 	result[miasm.arch.ia32_sem.esi] = ExprInt(uint32(origRegs["ESI"]))
 	result[miasm.arch.ia32_sem.edi] = ExprInt(uint32(origRegs["EDI"]))
-
-	
 	return result
 
 
-def processWrite(object):
-	print str(object)
-
 def processAffect(object):
+	""" Undoes some miasm preprocessing to be able to see discern between different
+	    parts of the same register."""
 	if not isinstance(object, ExprAff): raise ValueError, "Expected ExprAff at processAffect"
 	#Target 1: Strip the unnecessary slices
 
@@ -67,14 +69,14 @@ def processAffect(object):
 		return [object]
 
 
-def getSliceBytes(object, regs):
-	if isinstance(object, ExprSlice):
-		if isinstance(object.arg, ExprId):
+def getSliceBytes(srcObj, regs):
+	if isinstance(srcObj, ExprSlice):
+		if isinstance(srcObj.arg, ExprId):
 			res = []
-			assert object.start % 8 == 0
-			assert object.stop % 8 == 0
-			for i in xrange(object.start, object.stop, 8):
-				res.append("%s_%d" % (object.arg.name, i))
+			assert srcObj.start % 8 == 0
+			assert srcObj.stop % 8 == 0
+			for i in xrange(srcObj.start, srcObj.stop, 8):
+				res.append("%s_%d" % (srcObj.arg.name, i))
 			return res
 		else:
 			raise ValueError
@@ -85,6 +87,8 @@ def getIdBytes(inputExpr, regs):
 
 
 def getDataSource(sourceObject, regs, byteNum):
+	""" Given an expression, returns the data sources that
+	    can affect a certain byte of the output"""
 	if isinstance(sourceObject, ExprSlice):
 		bytes = getSliceBytes(sourceObject,regs)
 	elif isinstance(sourceObject, ExprId):
@@ -120,6 +124,8 @@ def getDataSource(sourceObject, regs, byteNum):
 	return [bytes[byteNum]]
 
 def listUnikeys(sourceObject, regs):
+	""" Takes an object and lists its all bytes in unikey notation
+	    (= integer representing the address of a byte in memory or REG_bitIndex )"""
 	if isinstance(sourceObject, ExprMem):
 		res = []
 		startAddr = sourceObject.arg
@@ -132,7 +138,6 @@ def listUnikeys(sourceObject, regs):
 		if "_" in sourceObject.name:
 			assert sourceObject.size == 8
 			return [sourceObject.name]
-		#XXX: Should we bit- or byteindex
 		size = sourceObject.size/8 
 		return ["%s_%d" % (sourceObject.name,i*8) for i in xrange(size)]
 	elif isinstance(sourceObject, ExprSlice):
@@ -142,12 +147,12 @@ def listUnikeys(sourceObject, regs):
 	raise ValueError
 
 
-def convertToUnikey(affects, regs):
+def buildMatrix_new(affects, regs):
 	result = {}
 	for curAffect in affects:
 		written =  listUnikeys(curAffect.dst, regs)
 		for byteIndex in xrange(0, len(written)):
-			#XXX: Put a switch for endianness
+			#XXX: Put a switch for endianness?
 			result[written[byteIndex]] = getDataSource(curAffect.src, regs, byteIndex)
 			#print "to ", written[byteIndex], " ", result[written[byteIndex]]
 	return result

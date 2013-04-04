@@ -12,8 +12,10 @@ import leveldb
 from time import time as systemtime
 import time 
 from analysis_funcs import *
+from EffectAnalyzer import *
 #saveName = "t206"
 import multiprocessing
+import traceback
 
 try:
 	import simplejson as json
@@ -48,15 +50,16 @@ def analyzeInstruction(eip, regs, memorySpaceStream):
 
 	engineVersion = 2
 	try:
-		changeMatrix = convertToUnikey(affects, regs)
+		changeMatrix = buildMatrix_new(affects, regs)
 	except:
 		changeMatrix = None
+		#print traceback.format_exc()
 		if not suppressErrors:
 			raise
 
 	#Use old engine
 	if changeMatrix is None:
-		changeMatrix = calcUnikeyRelations(affects, regs)
+		changeMatrix = buildMatrix_old(affects, regs)
 		engineVersion = 1
 
 	if changeMatrix is None: return None

@@ -3,7 +3,7 @@ import os
 import json
 from threading import Lock
 from time import time as systemtime
-from session import TargetTrace
+from TargetTrace import TargetTrace
 from datastore.DataFlow import *
 from taint import *
 
@@ -183,9 +183,9 @@ class GuiServer(object):
 
 		with target.getLock():
 			mh = target.getMemoryHistory()
-			evts = mh.listMemoryEvents(memRange, time, time + cycles)
-		
-		evts, newIndexes = mh.memoryGraph(evts, compress = compress)
+			evts = mh.iterMemoryEvents(memRange, time, time + cycles, groupByTime=True)
+			evts, newIndexes = mh.memoryGraph(list(evts), compress = compress, minAddr = min(memRange))
+
 		if compress: rangeSize = len(newIndexes)
 
 		return json.dumps(

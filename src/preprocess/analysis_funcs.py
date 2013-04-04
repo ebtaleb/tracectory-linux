@@ -1,3 +1,9 @@
+# This file contains the old version of the code that builds a dictionary
+# mapping incoming unikeys to those unikeys that are modified.
+# This does not map the effects very precisely, but is still used
+# when the new version cannot handle the instruction. 
+#
+# Unikey = (memory or register)
 import os
 from elfesteem import *
 from miasm.tools.pe_helper import *
@@ -11,7 +17,6 @@ from miasm.arch.ia32_reg import *
 from miasm.arch.ia32_arch import *
 import pickle
 
-from EffectAnalyzer import processAffect, convertToUnikey
 from data_sources import FossileStream, Trace
 
 
@@ -73,7 +78,7 @@ def convertToKey(data, regs):
 	print data,repr(data)
 	return data
 
-def calcUnikeyRelations(affects, regs, debug = False):
+def buildMatrix_old(affects, regs, debug = False):
 	# Loop through affects and transform this into a list
 	# for each unikey of the unikeys that affected it
 	# Returns a dictionary that maps each affected unikey

@@ -10,7 +10,6 @@ from data_sources import *
 from threading import Lock
 import leveldb
 from time import time as systemtime
-from analysis_funcs import *
 import multiprocessing
 import time
 
@@ -28,7 +27,6 @@ context = zmq.Context()
 
 #Port 5559 is used to signal to workers the memory dump to open
 workerControl = context.socket(zmq.PUB)
-
 
 #Port 5558 is used to signal to the result sink which database to write
 #thre results to 
@@ -68,7 +66,7 @@ def delegator(traceFile, dumpFile, newEngine, suppressErrors, dbName):
 	reply =  dbOpenSend.recv()
 	log("Reply from sink: %s" % reply)
 	assert reply == "OK"
-	log("Waitig for connections to settle")
+	log("Waiting for connections to settle")
 	time.sleep(2)
 
 	log("Starting to send data to workers")
