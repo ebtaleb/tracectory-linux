@@ -494,4 +494,10 @@ $ (function() {
 	);
 
 	$("#timeslider").slider("value",0);
+
+	$('#memView').mousewheel(function(event, delta, deltaX, deltaY) {
+
+	lastMemAddr += -32 * deltaY;
+			refreshMemoryDump(lastMemAddr, $("#timeslider").slider("value"));
+	});
 });
