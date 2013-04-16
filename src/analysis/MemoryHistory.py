@@ -1,4 +1,4 @@
-from datastore.DataFlow import *
+from Cycle import *
 from taint import *
 from collections import defaultdict
 
@@ -41,21 +41,20 @@ class MemoryAccess:
 
 class MemoryHistory:
 	def __init__(self, target):
-		self.oldDB = target.getDB("old")
-		self.newDB = target.getDB("new")
-		self.newDF = DataFlow(self.newDB, target)
+		self.db = target.getDB()
+		self.newDF = CycleFactory(self.db, target)
 
 	############# List functions ##########
 	def __binSearchList(self, listName, value):
 		#Binary search, logarithmic time
 		""" Returns largest x such that list[x]<=value """
 		lower = 0
-		try: upper = int(self.oldDB.Get("%s_ctr" % listName)) - 1
+		try: upper = int(self.db.Get("%s_ctr" % listName)) - 1
 		except KeyError: return None
 		#Searches for leq
 		while lower+1<upper:
 			middle = (lower+upper)/2
-			curValue = int(self.oldDB.Get("%s_%d" % (listName, middle)))
+			curValue = int(self.db.Get("%s_%d" % (listName, middle)))
 			if curValue>value:
 				upper = middle - 1
 			else:
@@ -69,8 +68,8 @@ class MemoryHistory:
 
 		return -1
 
-	def __listCount(self, listName): return int(self.oldDB.Get("%s_ctr" % listName))
-	def __getListInt(self, listName, idx): return int(self.oldDB.Get("%s_%d" % (listName,idx)))
+	def __listCount(self, listName): return int(self.db.Get("%s_ctr" % listName))
+	def __getListInt(self, listName, idx): return int(self.db.Get("%s_%d" % (listName,idx)))
 	def __getListValuesInRange(self, listName, minVal, maxVal):
 		lower = self.__binSearchList(listName, minVal)
 		if lower is None: return []

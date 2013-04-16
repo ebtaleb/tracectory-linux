@@ -1,5 +1,5 @@
 import leveldb
-from datastore.DataFlow import DataFlow
+from Cycle import *
 import os
 from MemoryHistory import *
 
@@ -10,17 +10,14 @@ from MemoryHistory import *
 class TargetTrace:
 	def __init__(self, saveName):
 		if os.path.exists("db/%s_combined" % saveName):
-			self.oldDB = leveldb.LevelDB("db/%s_combined" % saveName)
-			self.newDB = self.oldDB
+			self.db = leveldb.LevelDB("db/%s_combined" % saveName)
 		else:
-			self.oldDB = leveldb.LevelDB("db/%s_oldEngine" % saveName)
-			self.newDB = leveldb.LevelDB("db/%s_newEngine" % saveName )
-		self.dataflowTrace = DataFlow(self.oldDB, self)
+			raise ValueError, "File not found"
+		self.cycleFactory = CycleFactory(self.db, self)
 		self.saveName = saveName
-		self.dataflowTraceNew = DataFlow(self.newDB, self)
 		self.memDumpAddr = 0
 		try:
-			self.memDumpAddr = int(self.oldDB.Get("memDumpAddr"))
+			self.memDumpAddr = int(self.db.Get("memDumpAddr"))
 		except:
 			pass
 		self.memory = MemoryHistory(self)
@@ -29,23 +26,15 @@ class TargetTrace:
 		#with all DB access for each request :(
 		self.lock = Lock() 
 	def getMaxTime(self):
-		return int(self.oldDB.Get("maxTime"))	
+		return int(self.db.Get("maxTime"))	
 	def getLock(self):
 		return self.lock
-	def getDataflowTracer(self, new = False):
-		if not new:
-			return self.dataflowTrace
-		else:
-			return self.dataflowTraceNew
+	def getCycleFactory(self):
+		return self.cycleFactory
 	def getMemDumpAddr(self):
 		return self.memDumpAddr
-	def getDB(self, which):
-		if which == "old":
-			return self.oldDB
-		elif which == "new":
-			return self.newDB
-		else:
-			raise ValueError
+	def getDB(self):
+		return self.db
 	def getInfoHtml(self):
 		filename = "db/%s_info.html" % self.saveName
 		if not os.path.exists(filename): return "No info"

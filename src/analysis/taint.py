@@ -1,3 +1,5 @@
+# This file contains code that can be used to trace dataflow (origin of value i.e. backward 
+# data flow, or use of certain data i.e. forward data flow)
 import sys
 #from traceparser import *
 import copy
@@ -6,27 +8,26 @@ from md5 import md5
 import struct
 
 class Entry:
-	def __init__(self, name, parents = [], disasm = None):
-		self.name = name
+	def __init__(self, cycle, parents = []):
+		self.cycle = cycle
 		self.parents = parents
-		self.disasm = disasm
-		self.origins = None
+		self.__origins = None #cache for memoization
 	def __repr__(self):
 		return self.name
 	def backtrace(self, level = 0):
-		print " "*(2*level) + self.disasm
+		print " "*(2*level) + self.cycle.getDisasm()
 		for parent in self.parents:
 			if isinstance(parent, Entry):
 				parent.backtrace(level+1)
 	def listOrigins(self):
-		if self.origins is not None: return self.origins
+		if self.__origins is not None: return self.__origins
 		result = set()
 		for parent in self.parents:
 			if isinstance(parent, Entry):
 				result |= parent.listOrigins()
 			else:
 				result.add(parent)
-		self.origins = result
+		self.__origins = result
 		return result
 
 class ForwardTaintAnalyzer:
@@ -42,26 +43,20 @@ class ForwardTaintAnalyzer:
 			self.taintDict[str(memStart + i)] = (fileStart + i)
 
 	def generateEvent(self,origins, curTime, eip):
-		decOrigins = []
-		for origin in origins:
-			decOrigins.append(origin) 
+		decOrigins = list(origins)
 		decOrigins.sort()
 		self.results.append( (decOrigins, curTime, eip))
-	def analyze(self, t, MAX_STEPS = 10000):
+	def analyze(self, t, startTime, MAX_STEPS = 10000):
 		taintDict = self.taintDict
 		self.results = []
-		count = 0
-		for entry in t.oldIterate():
-			if count > MAX_STEPS: break
-			curTime, eip, instr, changeMatrix = entry
-			count += 1
+		for cycle in t.iterateCycles(startTime, maxCycles = MAX_STEPS):
 			#Before: Read taintDict to see the taint values of the locations that affected
 			#the current instruction (by iterating through round 1)
 			round2 = {}
-			for key,val in changeMatrix.items():
+			for key,val in cycle.getEffects().items():
 				sources = [taintDict[str(x)] for x in val if taintDict.has_key(x) or taintDict.has_key(str(x))]
 				if len(sources):
-					round2[key] = Entry("Instruction %08X" % eip, sources, str(instr)) 
+					round2[key] = Entry(cycle, sources) 
 				else:
 					round2[key] = None #This marks that the value was overwritten (with a constant)
 			roundSet = set(round2.values())
@@ -71,7 +66,7 @@ class ForwardTaintAnalyzer:
 				origins = set()
 				for curSource in roundSet:
 					origins |= curSource.listOrigins()
-				self.generateEvent(origins, curTime, eip)
+				self.generateEvent(origins, cycle.getTime(), cycle.getPC())
 				#print origins,"read by %08X" % eip
 			
 			# After: Commit results of this instruction to taintDict
@@ -108,76 +103,60 @@ class ForwardTaintAnalyzer:
 
 	
 class BackLink:
-	def __init__(self, time, eip, instr):
-		self.time = time
-		self.eip = eip
-		self.instr = instr
+	""" A node in the data flow graph. Call toGraph() on the root node to 
+	    get a list of nodes and edges.  """
+	def __init__(self, cycle):
+		self.cycle = cycle
 		self.parents = []
 	def link(self, newNode):
 		self.parents.append(newNode)
 	def __str__(self):
-		if self.time is None:
+		if self.cycle is None:
 			return "Final value"
-		return "%d/%08X %s" % (self.time, self.eip, self.instr)
-	def dump(self):
+		cycle = self.cycle
+		return "%d/%08X %s" % (cycle.getTime(), cycle.getPC(), cycle.getDisasm())
+	def toGraph(self):
 		nodes = set()
 		current = [self]
 		edges = []
 		while len(current):
-			next = set()
+			nextLevel = set()
 
 			for curNode in current:
 				nodes.add(str(curNode))
 				for p in curNode.parents:
 					edges.append((str(curNode), str(p)))
-					next.add(p)
-			current = next
+					nextLevel.add(p)
+			current = nextLevel
 		return nodes, edges
 
 
 class BackwardDataFlow:
+	""" This class is used to trace the origin of a certain value. It will
+	    return the root (type 'BackLink') of a tree that describes how the value
+	    was produced.  """
+	#XXX: So short that we might not need a class for this
 	def __init__(self, trace):
 		self.trace = trace
-	def follow(self, address, time, MAX_TRACE = 1000):
-		#TODO: Loop from time to time-MAX_TRACE
-		backtrace = self.trace
-		first = BackLink(None, None, None)
-		address = str(address)
-		taintDict = { address: first }
-		backtrace.seek(time)
-		#XXX: Migrate to new engine when it gets better
-		i = 0
-		for entry in backtrace.oldIterate(delta = -1):
+	def follow(self, address, startTime, MAX_TRACE = 1000):
+		first = BackLink(None)
+		taintDict = { str(address): first }
+		for cycle in self.trace.iterateCycles(startTime, delta = -1, maxCycles = MAX_TRACE):
 
-			if i>MAX_TRACE: break
-			i += 1
-
-			curTime, eip, instr, changeMatrix = entry
 			round2 = {}
-			for key,sourceList in changeMatrix.items():
+			for key, sourceList in cycle.getEffects().items():
 				#key is overwritten by values from data coming from <val>
 				if not taintDict.has_key(key): continue
 				oldVal = taintDict[key]
 				del taintDict[key]
+
 				#We taint all sources by the key
 				for curSource in sourceList:
-					round2[curSource] = BackLink(curTime, eip, instr)
+					round2[curSource] = BackLink(cycle)
 					oldVal.link(round2[curSource])
 			for k,v in round2.items():
 				taintDict[str(k)] = v
-			#print taintDict
 		return first
 
 
-def run2():
-	t = Trace("ex3/trace.txt")
-	memorySpace = FossileStream("ex3/dump")
 
-	df = BackwardDataFlow(t, memorySpace)
-	root = df.follow(0x404053, 135)
-	print root.dump()
-		
-
-if __name__ == "__main__":
-	run2()
-	#unittest.main()

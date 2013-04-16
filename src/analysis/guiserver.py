@@ -4,7 +4,6 @@ import json
 from threading import Lock
 from time import time as systemtime
 from TargetTrace import TargetTrace
-from datastore.DataFlow import *
 from taint import *
 
 traces  = {}
@@ -35,7 +34,7 @@ class CpuApi(object):
 		time = int(time)
 		startTime = max(0,time-10)
 		target = getTrace()
-		t = target.getDataflowTracer()
+		t = target.cycleFactory
 
 		dump = dump2 = "{}"
 		with target.getLock():
@@ -85,7 +84,7 @@ class MemoryApi(object):
 		result, reads, writes = {}, [], []
 		with target.getLock():
 			mh = target.getMemoryHistory()
-			dfTracer = target.getDataflowTracer()
+			dfTracer = target.getCycleFactory()
 			cycle = dfTracer.getCycle(time)
 			if cycle is None:
 				return json.dumps( { 'status' : 'error' } )
@@ -111,12 +110,11 @@ class TaintApi(object):
 		result = {}
 		dataLen = 3*16 + 1
 		with target.getLock():
-			t = target.getDataflowTracer()
+			t = target.getCycleFactory()
 			mh = target.getMemoryHistory()
 			analyzer = ForwardTaintAnalyzer()
 			analyzer.mark(address, 0, dataLen)
-			t.seek(time)
-			res = analyzer.analyze(t)
+			res = analyzer.analyze(t, time)
 			result['graph'] = analyzer.toGraph(res)
 			result['data'] = [mh.get(x, time) for x in xrange(address,address+dataLen)]
 		return json.dumps(result, indent = 4)
@@ -125,12 +123,12 @@ class TaintApi(object):
 		address = int(address)
 		time = int(time)
 		target = getTrace()
-		t = target.getDataflowTracer()
+		t = target.getCycleFactory()
 		with target.getLock():
 			startTime = systemtime()
 			df = BackwardDataFlow(t)
 			root = df.follow(address, time, 4000)
-			nodes, edges = root.dump()
+			nodes, edges = root.toGraph()
 			endTime = systemtime()
 
 		graph = "digraph G {\n"

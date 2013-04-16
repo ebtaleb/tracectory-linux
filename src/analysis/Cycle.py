@@ -39,7 +39,7 @@ class Cycle:
 					reads.add(src)
 		return list(reads), list(writes)
 
-class DataFlow:
+class CycleFactory:
 	def __init__(self, db, parentTrace):
 		self.db = db
 		self.time = 0
