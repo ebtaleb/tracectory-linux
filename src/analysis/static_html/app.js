@@ -35,7 +35,7 @@ function byteToHex(b){
 }
 
 
-var lastMemAddr = 2771222;
+var lastMemAddr = 0;
 function refreshMemoryDump(address, time){
 var params = {"address" : address, 'time' : time};	
 $.getJSON("/memory/getMemJson", params).done(
@@ -157,6 +157,7 @@ function initSlider(){
 			}
 			lastMemAddr = data['memDumpAddr'];
 			menuInit();
+			refreshMemoryDump(lastMemAddr, $("#timeslider").slider("value"));
 
 		}
 	);
