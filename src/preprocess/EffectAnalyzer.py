@@ -138,7 +138,7 @@ def listUnikeys(sourceObject, regs):
 		if "_" in sourceObject.name:
 			assert sourceObject.size == 8
 			return [sourceObject.name]
-		size = sourceObject.size/8 
+		size = max(1, sourceObject.size/8)
 		return ["%s_%d" % (sourceObject.name,i*8) for i in xrange(size)]
 	elif isinstance(sourceObject, ExprSlice):
 		sliceBytes = getSliceBytes(sourceObject, regs)
