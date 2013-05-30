@@ -38,14 +38,43 @@ class MemoryAccess:
 	def __repr__(self):
 		return "<MemoryAccess: %s%08X (t = %d)>" % (self.getType(), int(self.getAddress()), self.getTime())
 
+class MemoryLocation:
+	"""Represents a memory location was written/read during the trace."""
+	def __init__(self, history, loc):
+		self.history = history
+		self.loc = loc
+	def numReads(self):
+		try:
+			return self.history.lists.listCount("read_%d" % self.loc)
+		except KeyError:
+			return 0
+	def numWrites(self):
+		try:
+			return self.history.lists.listCount("write_%d" % self.loc)
+		except KeyError:
+			return 0
+	def getWriteByIdx(self, idx):
+		time =  self.history.lists.getListInt("write_%d" % self.loc, idx)
+		return MemoryAccess(self.history, self.loc, time, "W")
+	def getReadByIdx(self, idx):
+		time =  self.history.lists.getListInt("read_%d" % self.loc, idx)
+		return MemoryAccess(self.history, self.loc, time, "R")
 
-class MemoryHistory:
-	def __init__(self, target):
-		self.db = target.getDB()
-		self.newDF = CycleFactory(self.db, target)
+	def getLastRead(self):
+		reads = self.numReads()
+		if reads == 0: return None
+		return self.getReadByIdx(reads - 1)
+	def getLastWrite(self):
+		writes = self.numWrites()
+		if writes == 0: return None
+		return self.getWriteByIdx(writes - 1)
+	def __repr__(self):
+		return "<MemoryLocation: %08X (writes: %d, reads: %d)>" % (int(self.loc), self.numWrites(), self.numReads())
 
-	############# List functions ##########
-	def __binSearchList(self, listName, value):
+class ListManager:
+	def __init__(self, db):
+		self.db = db
+	def binSearchList(self, listName, value):
 		#Binary search, logarithmic time
 		""" Returns largest x such that list[x]<=value """
 		lower = 0
@@ -61,33 +90,46 @@ class MemoryHistory:
 				lower = middle
 		if upper == -1:
 			return -1
-		upperVal = self.__getListInt(listName, upper)
+		upperVal = self.getListInt(listName, upper)
 		if upperVal <= value: return upper
-		lowerVal = self.__getListInt(listName, lower)
+		lowerVal = self.getListInt(listName, lower)
 		if lowerVal <= value: return lower
 
 		return -1
 
-	def __listCount(self, listName): return int(self.db.Get("%s_ctr" % listName))
-	def __getListInt(self, listName, idx): return int(self.db.Get("%s_%d" % (listName,idx)))
-	def __getListValuesInRange(self, listName, minVal, maxVal):
-		lower = self.__binSearchList(listName, minVal)
+	def listCount(self, listName): return int(self.db.Get("%s_ctr" % listName))
+	def getListInt(self, listName, idx): return int(self.db.Get("%s_%d" % (listName,idx)))
+	def getListValuesInRange(self, listName, minVal, maxVal):
+		lower = self.binSearchList(listName, minVal)
 		if lower is None: return []
 		lower += 1
-		count = self.__listCount(listName)
+		count = self.listCount(listName)
 
 		if lower >= count: return []
-		upper = self.__binSearchList(listName, maxVal)
+		upper = self.binSearchList(listName, maxVal)
 		if upper is None:
 			#Upper not found but lower found -> upper = max
 			upper = count - 1
 		
 		result = []
 		for i in xrange(lower,upper+1):
-			result.append(self.__getListInt(listName, i))
+			result.append(self.getListInt(listName, i))
 		return result
 
-	############# /List functions #########
+
+
+class MemoryHistory:
+	def __init__(self, target):
+		self.db = target.getDB()
+		self.newDF = CycleFactory(self.db, target)
+		self.lists = ListManager(self.db)
+
+	def __binSearchList(self, listName, value): return self.lists.binSearchList(listName, value)
+	def __listCount(self, listName): return self.lists.listCount(listName)
+	def __getListInt(self, listName, idx): return self.lists.getListInt(listName, idx)
+	def __getListValuesInRange(self, listName, minVal, maxVal): 
+		return self.lists.getListValuesInRange(listName, minVal, maxVal)
+ 
 	def previousWrite(self, addr, time):
 		key = "write_%d" % addr
 		index = self.__binSearchList(key, time)
@@ -234,6 +276,14 @@ class MemoryHistory:
 			compressedList.append( (curRow[0], newCols) )
 		return compressedList, sortedAddrs
 
-	
+	def iterLocations(self):
+		start = "read_"
+		end = "reaf_"
+
+		for key in self.db.RangeIter(start, end, include_value = False):
+			if not key.endswith("ctr"): continue
+			addr = int(key.split("_")[1])
+			yield MemoryLocation(self, addr)
+			
 
 			
