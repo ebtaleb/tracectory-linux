@@ -496,8 +496,19 @@ $ (function() {
 	$("#timeslider").slider("value",0);
 
 	$('#memView').mousewheel(function(event, delta, deltaX, deltaY) {
-
-	lastMemAddr += -32 * deltaY;
-			refreshMemoryDump(lastMemAddr, $("#timeslider").slider("value"));
+		lastMemAddr += -32 * deltaY;
+		refreshMemoryDump(lastMemAddr, $("#timeslider").slider("value"));
 	});
+
+	$('#instrContents').mousewheel(function(event, delta, deltaX, deltaY) {
+		if(deltaY<0){
+			$("#timeslider").slider("value", $("#timeslider").slider("value") +1);
+		}else{
+
+			$("#timeslider").slider("value", $("#timeslider").slider("value") -1);
+		}
+	});
+
+
+
 });
