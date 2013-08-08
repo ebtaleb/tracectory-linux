@@ -8,7 +8,6 @@ sys.path.append("./src")
 import os
 from data_sources import *
 from threading import Lock
-import leveldb
 from time import time as systemtime
 import time 
 from analysis_funcs import *

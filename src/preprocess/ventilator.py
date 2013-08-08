@@ -8,19 +8,19 @@ sys.path.append("./src")
 import os
 from data_sources import *
 from threading import Lock
-import leveldb
 from time import time as systemtime
+from mongodb import MongoClient
 import multiprocessing
 import time
 
 import worker_process
-import result_writer
 
 def usage():
 	print >>sys.stderr, "%s <trace file> <memorys snapshot> <savename>" % sys.argv[0]
 
 import zmq
 context = zmq.Context()
+client = MongoClient()
 
 #Port 5559 is used to signal to workers the memory dump to open
 workerControl = context.socket(zmq.PUB)
@@ -42,7 +42,7 @@ def initConnections():
 	sendSocket.bind("tcp://127.0.0.1:5555")
 
 	log("Connecting to readySignalRecv")
-	readySignalRecv.connect("tcp://127.0.0.1:5557")
+	readySignalRecv.bind("tcp://127.0.0.1:5557")
 	readySignalRecv.setsockopt(zmq.SUBSCRIBE, "") 
 
 def log(s):
@@ -75,11 +75,14 @@ def delegator(traceFile, dumpFile, newEngine, suppressErrors, dbName):
 				message = readySignalRecv.recv_json()
 				log("Got quit signal from pid=%d" % message['pid'])
 				break
+	log("Writing metainfo")
+	db = client[dbName]
+	db.meta.insert( {'maxTime' : t-1 } )
 
 
 def process(traceFile, dumpFile):
 	log("Starting...")
-	dbName = "./db/%s_combined" % saveName
+	dbName =  saveName
 	delegator(traceFile, dumpFile, True, True,  dbName)
 
 workers = None
@@ -88,14 +91,14 @@ resultWriterProcess = None
 def spawnChildren():
 	global workerCnt
 	workerCnt = max(1, multiprocessing.cpu_count() )
-	log("Using: 1 ventilator process + %d worker processes + 1 result sink" % workerCnt)
+	log("Using: 1 ventilator process + %d worker processes" % workerCnt)
 #	the correct way: (doesn't work due to ZmQ v2 bug)
 #	global workers, resultWriterProcess
 #	workers = []
 #	for i in xrange(workerCnt):
 #		workers.append( multiprocessing.Process(target = worker_process.main))	
 #
-	for w in workers: w.start()
+#	for w in workers: w.start()
 	for i in xrange(workerCnt):
 		os.system("python src/preprocess/worker_process.py&")
 	
