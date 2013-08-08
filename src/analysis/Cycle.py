@@ -4,7 +4,6 @@ sys.path.append("./src")
 import os
 import json
 from threading import Lock
-import leveldb
 
 try:
 	import simplejson as json
@@ -17,8 +16,8 @@ class Cycle:
 	def __init__(self, cpu, cycleNum):
 		self.time = cycleNum
 		self.cpu = cpu
-		recordStr = cpu.db.Get("instr_%d" % cycleNum) #We let KeyError bubble up
-		self.record = json.loads(recordStr) 
+		self.record = cpu.db.instructions.find_one( {'time' :  cycleNum }, {'_id' : 0}) 
+		if self.record is None: raise KeyError
 		#time, eip, instr, changeMatrix
 		self.regs = self.record['regs']
 	def getTime(self): return self.time
@@ -43,7 +42,7 @@ class CycleFactory:
 	def __init__(self, db, parentTrace):
 		self.db = db
 		self.time = 0
-		self.maxTime = int(self.db.Get("maxTime"))
+		self.maxTime = parentTrace.getMaxTime()
 		self.parentTrace = parentTrace
 	def seek(self, time):
 		self.time = time
@@ -75,7 +74,7 @@ class CycleFactory:
 		
 	def dumpState(self):
 		try:
-			return self.db.Get("instr_%d" % self.time)
+			return self.getCycle(self.time).jsonDump()
 		except KeyError:
 			return "{}"
 

@@ -39,118 +39,52 @@ class MemoryAccess:
 		return "<MemoryAccess: %s%08X (t = %d)>" % (self.getType(), int(self.getAddress()), self.getTime())
 
 class MemoryLocation:
-	"""Represents a memory location was written/read during the trace."""
+	"""Represents a memory location that was written/read during the trace."""
 	def __init__(self, history, loc):
 		self.history = history
 		self.loc = loc
 	def numReads(self):
-		try:
-			return self.history.lists.listCount("read_%d" % self.loc)
-		except KeyError:
-			return 0
+		return self.history.db.reads.find( {'addr' : self.loc }).count()
 	def numWrites(self):
-		try:
-			return self.history.lists.listCount("write_%d" % self.loc)
-		except KeyError:
-			return 0
-	def getWriteByIdx(self, idx):
-		time =  self.history.lists.getListInt("write_%d" % self.loc, idx)
-		return MemoryAccess(self.history, self.loc, time, "W")
-	def getReadByIdx(self, idx):
-		time =  self.history.lists.getListInt("read_%d" % self.loc, idx)
-		return MemoryAccess(self.history, self.loc, time, "R")
-
+		return self.history.db.writes.find( {'addr' : self.loc }).count()
 	def getLastRead(self):
+
 		reads = self.numReads()
 		if reads == 0: return None
-		return self.getReadByIdx(reads - 1)
+
+		l = list(self.history.db.reads.find({'addr' : self.loc }).sort( {'time' : -1}).limit(1))
+		return l[0]
 	def getLastWrite(self):
-		writes = self.numWrites()
-		if writes == 0: return None
-		return self.getWriteByIdx(writes - 1)
+
+		reads = self.numWrites()
+		if reads == 0: return None
+
+		l = list(self.history.db.writes.find({'addr' : self.loc }).sort( {'time' : -1}).limit(1))
+		return l[0]
+
 	def __repr__(self):
 		return "<MemoryLocation: %08X (writes: %d, reads: %d)>" % (int(self.loc), self.numWrites(), self.numReads())
-
-class ListManager:
-	def __init__(self, db):
-		self.db = db
-	def binSearchList(self, listName, value):
-		#Binary search, logarithmic time
-		""" Returns largest x such that list[x]<=value """
-		lower = 0
-		try: upper = int(self.db.Get("%s_ctr" % listName)) - 1
-		except KeyError: return None
-		#Searches for leq
-		while lower+1<upper:
-			middle = (lower+upper)/2
-			curValue = int(self.db.Get("%s_%d" % (listName, middle)))
-			if curValue>value:
-				upper = middle - 1
-			else:
-				lower = middle
-		if upper == -1:
-			return -1
-		upperVal = self.getListInt(listName, upper)
-		if upperVal <= value: return upper
-		lowerVal = self.getListInt(listName, lower)
-		if lowerVal <= value: return lower
-
-		return -1
-
-	def listCount(self, listName): return int(self.db.Get("%s_ctr" % listName))
-	def getListInt(self, listName, idx): return int(self.db.Get("%s_%d" % (listName,idx)))
-	def getListValuesInRange(self, listName, minVal, maxVal):
-		lower = self.binSearchList(listName, minVal)
-		if lower is None: return []
-		lower += 1
-		count = self.listCount(listName)
-
-		if lower >= count: return []
-		upper = self.binSearchList(listName, maxVal)
-		if upper is None:
-			#Upper not found but lower found -> upper = max
-			upper = count - 1
-		
-		result = []
-		for i in xrange(lower,upper+1):
-			result.append(self.getListInt(listName, i))
-		return result
-
 
 
 class MemoryHistory:
 	def __init__(self, target):
 		self.db = target.getDB()
 		self.newDF = CycleFactory(self.db, target)
-		self.lists = ListManager(self.db)
-
-	def __binSearchList(self, listName, value): return self.lists.binSearchList(listName, value)
-	def __listCount(self, listName): return self.lists.listCount(listName)
-	def __getListInt(self, listName, idx): return self.lists.getListInt(listName, idx)
-	def __getListValuesInRange(self, listName, minVal, maxVal): 
-		return self.lists.getListValuesInRange(listName, minVal, maxVal)
  
 	def previousWrite(self, addr, time):
-		key = "write_%d" % addr
-		index = self.__binSearchList(key, time)
-		if index is None or index == -1: return None
-		return self.__getListInt(key, index)
+		l = list(self.db.writes.find( {"addr" : addr , "time" : { "$lt" :  time  }} ).sort("time", direction = -1).limit(1))
+		if len(l) == 0: return None
+		return l[0]['time']
+
 	def nextRead(self, addr,time):
-		key = "read_%d" % addr
-		index = self.__binSearchList(key, time)
-		if index is None: return None
-		if (index+1) >= self.__listCount(key):
-			return None
-		return self.__getListInt(key, index + 1)
+		l = list(self.db.reads.find( {"addr" : addr , "time" : { "$gt" :  time  }} ).limit(1))
+		if len(l) == 0: return None
+		return l[0]['time']
+
 	def nextWrite(self, addr,time):
-		key = "write_%d" % addr
-		index = self.__binSearchList(key, time)
-		if index is None: return None
-		if (index+1) >= self.__listCount(key):
-			return None
-		return self.__getListInt(key, index + 1)
-
-
+		l = list(self.db.writes.find( {"addr" : addr , "time" : { "$gt" :  time  }} ).limit(1))
+		if len(l) == 0: return None
+		return l[0]['time']
 
 	def get(self, address, time):
 		result = self.getWithTime(address,time)
@@ -170,7 +104,7 @@ class MemoryHistory:
 		readAt=self.nextRead(address, writtenAt)
 		#Confirm that there is no intervening write that could have changed the value 
 		#in between
-		nextWrite = self.nextWrite(address,writtenAt+1)
+		nextWrite = self.nextWrite(address,writtenAt+1) #XXX: Check off-by one
 		if nextWrite is not None and nextWrite<readAt:
 			return None
 
@@ -230,17 +164,20 @@ class MemoryHistory:
 		eventsByTime = defaultdict(list)
 		for byteIdx in xrange(0, len(byteArray)):
 			curAddr = byteArray[byteIdx]
-			l = "read_%d" % curAddr
-			for curTime in  self.__getListValuesInRange(l, startTime, endTime):
+			reads = self.db.reads.find( {'addr' : curAddr, 'time' : { '$gte' : startTime, '$lte' : endTime}})
+			for curRead in reads:
+				curTime = int(curRead['time'])
 				eventsByTime[curTime].append( 
 					MemoryAccess(self, curAddr, curTime, "R")
 				)
 
-			l = "write_%d" % curAddr
-			for curTime in  self.__getListValuesInRange(l, startTime, endTime):
+			writes = self.db.writes.find( {'addr' : curAddr, 'time' : { '$gte' : startTime, '$lte' : endTime}})
+			for curWrite in  writes:
+				curTime = int(curWrite['time'])
 				eventsByTime[curTime].append( 
 					MemoryAccess(self, curAddr, curTime, "W")
 				)
+
 		if groupByTime:
 			keys = eventsByTime.keys()
 			result = []
@@ -276,14 +213,14 @@ class MemoryHistory:
 			compressedList.append( (curRow[0], newCols) )
 		return compressedList, sortedAddrs
 
-	def iterLocations(self):
-		start = "read_"
-		end = "reaf_"
-
-		for key in self.db.RangeIter(start, end, include_value = False):
-			if not key.endswith("ctr"): continue
-			addr = int(key.split("_")[1])
-			yield MemoryLocation(self, addr)
+#	def iterLocations(self):
+#		start = "read_"
+#		end = "reaf_"
+#
+#		for key in self.db.RangeIter(start, end, include_value = False):
+#			if not key.endswith("ctr"): continue
+#			addr = int(key.split("_")[1])
+#			yield MemoryLocation(self, addr)
 			
 
 			

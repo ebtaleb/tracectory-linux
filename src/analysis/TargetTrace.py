@@ -1,7 +1,7 @@
-import leveldb
 from Cycle import *
 import os
 from MemoryHistory import *
+from pymongo import Connection as MongoClient
 
 #traces['memcrypt'].memDumpAddr = 0x404050;
 #traces['t206'].memDumpAddr = 2771222;
@@ -9,15 +9,19 @@ from MemoryHistory import *
 
 class TargetTrace:
 	def __init__(self, saveName):
-		if os.path.exists("db/%s_combined" % saveName):
-			self.db = leveldb.LevelDB("db/%s_combined" % saveName)
+		if os.path.exists("db/%s_info.html" % saveName):
+			client = MongoClient()
+			self.db = client[saveName]
 		else:
+			print saveName
 			raise ValueError, "File not found"
+
+		self.meta = self.db.meta.find_one()
 		self.cycleFactory = CycleFactory(self.db, self)
 		self.saveName = saveName
 		self.memDumpAddr = 0
 		try:
-			self.memDumpAddr = int(self.db.Get("memDumpAddr"))
+			self.memDumpAddr = int(self.meta['memDumpAddr'])
 		except:
 			pass
 		self.memory = MemoryHistory(self)
@@ -26,7 +30,7 @@ class TargetTrace:
 		#with all DB access for each request :(
 		self.lock = Lock() 
 	def getMaxTime(self):
-		return int(self.db.Get("maxTime"))	
+		return int(self.meta["maxTime"])	
 	def getLock(self):
 		return self.lock
 	def getCycleFactory(self):
