@@ -75,9 +75,15 @@ def delegator(traceFile, dumpFile, newEngine, suppressErrors, dbName):
 				message = readySignalRecv.recv_json()
 				log("Got quit signal from pid=%d" % message['pid'])
 				break
+
 	log("Writing metainfo")
 	db = client[dbName]
 	db.meta.insert( {'maxTime' : t-1 } )
+
+	log("Adding indexes")
+	db.instructions.ensure_index( {'time' : 1} )
+	db.reads.ensure_index( {'addr' : 1, 'time' : 1} )
+	db.writes.ensure_index( {'addr' : 1, 'time' : 1} )
 
 
 def process(traceFile, dumpFile):
