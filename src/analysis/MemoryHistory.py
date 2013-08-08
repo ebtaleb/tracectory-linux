@@ -17,10 +17,12 @@ class MemoryAccess:
 	def getType(self): return self.readOrWrite
 	def getAddress(self): return self.address
 	def getTime(self): return self.time
+	def isRead(self):  return  self.readOrWrite == "R"
+	def isWrite(self): return self.readOrWrite == "W"
 	def getValue(self):
-		if self.readOrWrite == "R":
+		if self.isRead():
 			return self.history.getByteReadAt(self.address, self.time)
-		elif self.readOrWrite == "W":
+		elif self.isWrite():
 			return self.history.getByteWrittenAt(self.address, self.time)
 		else:
 			raise ValueError, "Inconsistent state / neither read nor write"
@@ -32,8 +34,6 @@ class MemoryAccess:
 		t = self.history.nextRead(self.address, self.time)
 		if t is None: return None
 		return MemoryAccess(self.history, self.address, t, "R")
-	def isRead(self):  return  self.readOrWrite == "R"
-	def isWrite(self): return self.readOrWrite == "W"
 
 	def __repr__(self):
 		return "<MemoryAccess: %s%08X (t = %d)>" % (self.getType(), int(self.getAddress()), self.getTime())
