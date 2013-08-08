@@ -9,7 +9,7 @@ import os
 from data_sources import *
 from threading import Lock
 from time import time as systemtime
-from pymongo import MongoClient
+from pymongo import Connection as MongoClient
 import multiprocessing
 import time
 
