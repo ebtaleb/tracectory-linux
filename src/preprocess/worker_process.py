@@ -16,6 +16,10 @@ from EffectAnalyzer import *
 #saveName = "t206"
 import multiprocessing
 import traceback
+from pymongo import Connection as MongoClient
+client = MongoClient()
+
+db = None
 
 try:
 	import simplejson as json
@@ -118,14 +122,13 @@ def main():
 	receive = context.socket(zmq.PULL)
 	receive.connect("tcp://127.0.0.1:5555")
 
-	#Push the results to result sin
-	sendResult = context.socket(zmq.PUSH)
-	sendResult.connect("tcp://127.0.0.1:5556")
-
 	#Receive control commands from the ventilator
 	workerControl = context.socket(zmq.SUB)
 	workerControl.connect("tcp://127.0.0.1:5559")
 	workerControl.setsockopt(zmq.SUBSCRIBE, "")
+
+	readySignalSend = context.socket(zmq.PUSH)
+	readySignalSend.connect("tcp://127.0.0.1:5557")
 
 	poller = zmq.Poller()
 	poller.register(workerControl, zmq.POLLIN)
@@ -138,8 +141,12 @@ def main():
 			message = workerControl.recv_json()
 			log("got control message: " + json.dumps(message))
 			if message['type'] == 'loadDump':
+				#Open the dump
 				dump = message['dump']
 				subprocessInit(dump, True, True)
+
+				#open the database
+				db = client[message['db']]
 			elif message['type'] == 'shutdown':
 				break
 			else:
@@ -150,14 +157,29 @@ def main():
 			curTime, curLine = receive.recv_json()
 			if curTime == -1:
 				#Pass-through message 
-				sendResult.send_json((curTime, curLine))
-			else:
-				try:
-					record = processLine(curLine)
-					sendResult.send_json((curTime, record))
-				except:
-					log("Exception while processing t=%d" % curTime)
-					sendResult.send_json((curTime, None))
+				readySignalSend.send_json( { 'quit' : 1 , 'pid' : os.getpid()} )
+				break
+
+			record = None
+			try:
+				record = processLine(curLine)
+			except:
+				log("Exception while processing t=%d" % curTime)
+
+			if record is not None:
+				record['time'] = curTime
+				record = json.loads(json.dumps(record)) #XXX: Hack, converts keys to string
+				db.instructions.insert(record)
+
+				#Add indexes to DB as well
+				if record.has_key("changes") and record['changes'] is not None:
+					for key,value in record['changes'].items():
+						if str(key).isdigit():
+							db.writes.insert( {'addr': int(key), 'time' : curTime})
+						for v in value:
+							if str(v).isdigit():
+								db.reads.insert( {'addr': int(v), 'time' : curTime})
+					
 
 			
 
