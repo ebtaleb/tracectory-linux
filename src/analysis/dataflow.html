@@ -1,0 +1,44 @@
+<!doctype html>
+ 
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tracelyzer</title>
+
+
+  <script src="/static/viz.js"></script>
+  <script src="/static/lib/jquery-1.9.1.js"></script>
+<script>
+
+
+function refreshGraph(address, time){
+	var params =  {'time' : time, 'address': address};
+	$.getJSON("/taint/dataflow", params).done(
+	 function(data){
+		var svg = Viz(data['graph'], "svg");
+		//svg = svg.replace(new RegExp("width=\".*\"","gm"),"width=\"100%\"");
+		$("#graph").html(svg);
+
+	});
+
+
+}
+
+$(function() {
+	refreshGraph( %ADDR%, %TIME%);
+});
+
+</script>
+
+</head>
+
+<body>
+<div id="graphView" class="ui-widget-content"  >
+		<div style="width:900px;clear:both;"></div>
+		<div id="graph" style="width: 100%; height: 400px;"></div>
+	</div>
+
+</body>
+
+</html>
+

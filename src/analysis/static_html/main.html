@@ -10,7 +10,6 @@
   <script src="lib/ui/jquery-ui.js"></script>
 	<script src="jquery.ui.menubar.js"></script>
 	<script src="jquery.mousewheel.min.js"></script>
-  <script src="viz.js"></script>
   <script src="raphael-min.js"></script>
 
   <script src="app.js"></script>
@@ -18,6 +17,7 @@
   <style>
   #memView { width: 450px; height: 130px; padding: 0.5em; float: left; }
   #graphView { height: 150px; padding: 0.5em; float: left; }
+  #timeJumpDiv { float: left; }
   #timeslider { margin: 10px; }
   #hexView {font-family: monospace; float: left; }
   #asciiView {font-family: monospace; float: left;}
@@ -48,6 +48,13 @@
 			</li>
 		</ul>
 	</li>
+	<li><a href="#">Time</a>
+		<ul>
+			<li id="jumpToTime">
+				<a href="#">Jump to time...</a>	
+			</li>
+		</ul>
+	</li>
 </ul>
 </div>
 
@@ -56,9 +63,9 @@
 
 <div id="timeView" class="ui-widget-content" >
 <div class="ui-widget-header">Global time control</div>
-
-<button id="timeJump" class="smallButton">Jump to time</button>
-<div id="timeslider"></div> 
+	<!-- <button id="timeJump" class="smallButton">Jump to time</button> -->
+	<div id="timeslider"></div> 
+</div>
  </div>
 </div>
 
@@ -75,7 +82,7 @@
 
 	<h3 class="aTop">CPU view: Instructions and CPU state</h3>
 	<div id="instrView" class="ui-widget-content">
-		<p class="description">This view shows the most recently executed instructions and a couple of instructions executed before it. On the right two database dumps are shown from different versions of the engine. The engine uses notation tttt/iiiiiiiii, where tttt = timestamp and iiiii = address of instruction.
+		<p class="description">This view shows the most recently executed instructions and a couple of instructions executed before it. On the right two a raw database dump is shown. The engine uses notation tttt/iiiiiiiii, where tttt = timestamp and iiiii = address of instruction.
 		<div>
 		<textarea id="instrContents" rows="20" cols="50"></textarea>
 		<textarea id="cpuState" rows="20" cols="40"></textarea>
@@ -87,8 +94,7 @@
 	<div id="rwGraph" class="ui-widget-content">
 		<p class="description">
 			This view is used to visualize all memory reads and writes accessing a given memory range. Read accesses are colored green and write accesses red. Click on a memory access to move the time slider to the instruction that caused the access and check CPU view.<br/>
-			Computational complexity: O(n log m + n log n + C), where n = number of memory locations; m = maximum number of memory oprerations to a single location in the range;  C = size of output i.e. the amount of squares 
-		</p>
+					</p>
 		<button id="btnRW">Draw</button>
 		<div id="rwGraphCanvas"></div>
 	</div>
@@ -105,12 +111,7 @@
 		<div id="readGraphCanvas"></div>
 	</div>
 
-	<h3 class="aTop">Dataflow graph: Where does this value originate from? (use by clicking a hex value in the memory dump)</h3>
-	<div id="graphView" class="ui-widget-content"  >
-		<div style="width:900px;clear:both;"></div>
-		<div id="graph" style="width: 100%; height: 400px;"></div>
-	</div>
-
+	
 </div>
 <!-- Dialogs -->
 <div id="jumpToForm" title="Jump to a point in time">

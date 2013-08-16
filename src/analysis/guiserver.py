@@ -114,13 +114,15 @@ class MemoryApi(object):
 		startTime = int(startTime)
 		endTime   = int(endTime)
 		startAddr = int(startAddr)
+		endAddr = int(endAddr)
 		if startTime == -1: startTime = None
 		if endTime == -1: endTime = None
 		if startAddr == -1: startAddr = None
+		if endAddr == -1: endAddr = None
 		with target.getLock():
 			mh = target.getMemoryHistory()
 			res = mh.getOverview(timeResolution = timeResolution, addrResolution = addrResolution, startBlock = startBlock,
-				startTime = startTime, endTime = endTime, startAddr = startAddr)
+				startTime = startTime, endTime = endTime, startAddr = startAddr, endAddr = endAddr)
 			return res
 
 class TaintApi(object):
@@ -162,10 +164,19 @@ class TaintApi(object):
 		
 		return json.dumps({ 'graph' : graph } )
 
+class Views(object):
+	@cherrypy.expose
+	def renderDataflow(self, address, time):
+		s = open(os.path.dirname(os.path.realpath(__file__)) + "/dataflow.html").read()
+		s = s.replace("%ADDR%", str(int(address)))
+		s = s.replace("%TIME%", str(int(time)))
+		return s
+
 class GuiServer(object):
 	cpu = CpuApi()
 	memory = MemoryApi()
 	taint = TaintApi()
+	view = Views()
 	def index(self):
 		raise cherrypy.HTTPRedirect("static/main.html")
 	def getInfo(self):

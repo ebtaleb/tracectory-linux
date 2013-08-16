@@ -174,23 +174,11 @@ function initSlider(){
 
 function memClick(address, time){
 	if(time == -1) return;
-	refreshGraph(address, time);
+	//refreshGraph(address, time);
 	$("#timeslider").slider("value",time);
 }
 
-function refreshGraph(address, time){
-	var params =  {'time' : time, 'address': address};
-	$.getJSON("/taint/dataflow", params).done(
-	 function(data){
-		$("#accordion").accordion( { active: 4});
-		var svg = Viz(data['graph'], "svg");
-		svg = svg.replace(new RegExp("width=\".*\"","gm"),"width=\"100%\"");
-		$("#graph").html(svg);
 
-	});
-
-
-}
 
 function menuInit(){
 	$("#menu").menubar( { select: menuSelect } );
@@ -209,6 +197,11 @@ function menuSelect(event, ui){
 				}
 			}
 		);
+	}else if(id == "jumpToTime"){
+		var val = $("#timeslider").slider("value");
+		$("#txtTargetTime").val(val);
+		$("#jumpToForm").dialog( "open" );
+		event.preventDefault();
 	}
 	event.preventDefault();
 }
@@ -239,14 +232,6 @@ function initTimeJumpDlg(){
 			}
 		}
 		} );
-
-	$("#timeJump").button().click(function(event){
-
-		var val = $("#timeslider").slider("value");
-		$("#txtTargetTime").val(val);
-		$("#jumpToForm").dialog( "open" );
-		event.preventDefault();
-	});
 
 }
 

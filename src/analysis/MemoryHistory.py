@@ -215,23 +215,13 @@ class MemoryHistory:
 			compressedList.append( (curRow[0], newCols) )
 		return compressedList, sortedAddrs
 
-#	def iterLocations(self):
-#		start = "read_"
-#		end = "reaf_"
-#
-#		for key in self.db.RangeIter(start, end, include_value = False):
-#			if not key.endswith("ctr"): continue
-#			addr = int(key.split("_")[1])
-#			yield MemoryLocation(self, addr)
-			
-
 	def checkForRange(self, table, startAddr, endAddr, startTime, endTime):
 		sample = table.find_one({'addr' : {"$gte" : startAddr, "$lt" : endAddr }, 'time' : {"$gte" : startTime}}, 
 			{'_id' : 0, "time" : 1})
 		return (sample is not None and sample['time'] < endTime)
 
 
-	def getOverview(self, timeResolution = 30, addrResolution=30, startBlock = 0, startTime = None, endTime = None, startAddr = 0):	
+	def getOverview(self, timeResolution = 30, addrResolution=30, startBlock = 0, startTime = None, endTime = None, startAddr = 0, endAddr = None):	
 		print "timeResolution = %d, addrResolution = %d" % (timeResolution, addrResolution)
 		if self.memAddrs is not None:
 			addresses = self.memAddrs
@@ -246,17 +236,20 @@ class MemoryHistory:
 		if endTime is None: endTime = self.target.getMaxTime()
 		if startTime is None: startTime = 0
 		if startAddr is None: startAddr = 0
+		if endAddr is None: endAddr=999
 
 		timeBucketSize = (endTime - startTime) / timeResolution
 		addresses = list(sorted(list(addresses)))
 		if startAddr in addresses:
 			addresses = addresses[addresses.index(startAddr):]
+		if endAddr in addresses:
+			addresses = addresses[:addresses.index(endAddr):]
 		addrBucketSize = len(addresses) / addrResolution
 
 		curRow = None
 		result = []
 		maxVal = 0
-		perOne = max(1, 5)
+		perOne = 8
 
 		for row in xrange(perOne):
 			y = row + startBlock	
