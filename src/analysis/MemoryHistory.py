@@ -225,8 +225,14 @@ class MemoryHistory:
 #			yield MemoryLocation(self, addr)
 			
 
-	def getOverview(self, xResolution = 30, yResolution=30, startBlock = 0):	
-		print "xResolution = %d, yResolution = %d" % (xResolution, yResolution)
+	def checkForRange(self, table, startAddr, endAddr, startTime, endTime):
+		sample = table.find_one({'addr' : {"$gte" : startAddr, "$lt" : endAddr }, 'time' : {"$gte" : startTime}}, 
+			{'_id' : 0, "time" : 1})
+		return (sample is not None and sample['time'] < endTime)
+
+
+	def getOverview(self, timeResolution = 30, addrResolution=30, startBlock = 0, startTime = None, endTime = None, startAddr = 0):	
+		print "timeResolution = %d, addrResolution = %d" % (timeResolution, addrResolution)
 		if self.memAddrs is not None:
 			addresses = self.memAddrs
 		else:
@@ -237,42 +243,41 @@ class MemoryHistory:
 			del writeAddr
 			self.memAddrs = addresses
 
-		minAddr = min(addresses)
-		maxAddr = max(addresses)
-		
-		xBucketSize = self.target.getMaxTime() / xResolution
+		if endTime is None: endTime = self.target.getMaxTime()
+		if startTime is None: startTime = 0
+		if startAddr is None: startAddr = 0
+
+		timeBucketSize = (endTime - startTime) / timeResolution
 		addresses = list(sorted(list(addresses)))
-		yBucketSize = len(addresses) / yResolution
+		if startAddr in addresses:
+			addresses = addresses[addresses.index(startAddr):]
+		addrBucketSize = len(addresses) / addrResolution
 
 		curRow = None
 		result = []
 		maxVal = 0
-		perOne = max(1, 3)
+		perOne = max(1, 5)
 
 		for row in xrange(perOne):
 			y = row + startBlock	
-			curAddr = addresses[y*yBucketSize]
-			curEnd = addresses[(y+1) * yBucketSize]
+			curAddr = addresses[y*addrBucketSize]
+			if (y+1)*addrBucketSize >= len(addresses):
+				curEnd = 2**65
+			else:
+				curEnd = addresses[(y+1) * addrBucketSize]
 			if curRow is not None: result.append(curRow)
 			curRow = []
 			print "%08X-%08X" %(curAddr, curEnd)
 
-			curEnd = curAddr + yBucketSize
-			for x in xrange(xResolution):
-				curTime = x*xBucketSize
-				readCount = self.db.reads.find(	{'addr' : {"$gte" : curAddr, "$lt" : (curEnd) },
-					  		    	 'time' : {"$gte" : curTime, "$lt" : (curTime+xBucketSize)}
-							    	},
-								{ "_id" : 0, "time" : 1}).count()
-				writeCount = self.db.writes.find({'addr' : {"$gte" : curAddr, "$lt" : (curEnd) },
-					  		    	 'time' : {"$gte" : curTime, "$lt" : (curTime+xBucketSize)}
-							    	},
-								{ "_id" : 0, "time" : 1}).count()
-
-				info = { "readCount" : readCount, "writeCount" : writeCount, "firstAddr" : curAddr, "firstTime" : curTime }
+			curEnd = curAddr + addrBucketSize
+			for x in xrange(timeResolution):
+				curTime = x*timeBucketSize + startTime
+				wasRead = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
+				wasWritten = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
+				info = { "wasRead" : wasRead, "wasWritten" : wasWritten, "firstAddr" : curAddr, "firstTime" : curTime }
 				curRow.append(info)
+
 		if curRow is not None: result.append(curRow)	
-		print ''
-		print len(result)
+
 		return json.dumps(result, indent=4)
 	

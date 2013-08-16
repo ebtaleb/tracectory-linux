@@ -103,15 +103,24 @@ class MemoryApi(object):
 						})
 			
 		return json.dumps( { 'status' : 'ok', 'reads' : reads, 'writes' : writes } )
+
 	@cherrypy.expose
-	def wholeProgram(self, xResolution, yResolution, startBlock):
+	def wholeProgram(self, timeResolution, addrResolution, startBlock, startTime, endTime, startAddr, endAddr):
 		target = getTrace()
-		xResolution = int(xResolution)
-		yResolution = int(yResolution)
+		timeResolution = int(timeResolution)
+		addrResolution = int(addrResolution)
 		startBlock = int(startBlock)
+
+		startTime = int(startTime)
+		endTime   = int(endTime)
+		startAddr = int(startAddr)
+		if startTime == -1: startTime = None
+		if endTime == -1: endTime = None
+		if startAddr == -1: startAddr = None
 		with target.getLock():
 			mh = target.getMemoryHistory()
-			res = mh.getOverview(xResolution = xResolution, yResolution = yResolution, startBlock = startBlock)
+			res = mh.getOverview(timeResolution = timeResolution, addrResolution = addrResolution, startBlock = startBlock,
+				startTime = startTime, endTime = endTime, startAddr = startAddr)
 			return res
 
 class TaintApi(object):
