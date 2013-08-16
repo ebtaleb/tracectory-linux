@@ -28,6 +28,9 @@ def getTrace():
 		cherrypy.session['trace'] = traces[defaultTrace]
 		return cherrypy.session['trace']
 
+#Crude input validation here, we'll just crash if the input does not 
+#coerse to int
+
 class CpuApi(object):
 	@cherrypy.expose
 	def getInstructions(self, time):
@@ -100,6 +103,16 @@ class MemoryApi(object):
 						})
 			
 		return json.dumps( { 'status' : 'ok', 'reads' : reads, 'writes' : writes } )
+	@cherrypy.expose
+	def wholeProgram(self, xResolution, yResolution, startBlock):
+		target = getTrace()
+		xResolution = int(xResolution)
+		yResolution = int(yResolution)
+		startBlock = int(startBlock)
+		with target.getLock():
+			mh = target.getMemoryHistory()
+			res = mh.getOverview(xResolution = xResolution, yResolution = yResolution, startBlock = startBlock)
+			return res
 
 class TaintApi(object):
 	@cherrypy.expose

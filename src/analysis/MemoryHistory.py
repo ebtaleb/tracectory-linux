@@ -1,7 +1,7 @@
 from Cycle import *
 from taint import *
 from collections import defaultdict
-
+import json
 
 class MemoryAccess:
 	"""MemoryAccess objects represent a memory access (read/write) at a certain
@@ -70,6 +70,8 @@ class MemoryHistory:
 	def __init__(self, target):
 		self.db = target.getDB()
 		self.newDF = CycleFactory(self.db, target)
+		self.target = target
+		self.memAddrs = None
  
 	def previousWrite(self, addr, time):
 		l = list(self.db.writes.find( {"addr" : addr , "time" : { "$lt" :  time  }} ).sort("time", direction = -1).limit(1))
@@ -223,4 +225,54 @@ class MemoryHistory:
 #			yield MemoryLocation(self, addr)
 			
 
-			
+	def getOverview(self, xResolution = 30, yResolution=30, startBlock = 0):	
+		print "xResolution = %d, yResolution = %d" % (xResolution, yResolution)
+		if self.memAddrs is not None:
+			addresses = self.memAddrs
+		else:
+			readAddr = set(self.db.reads.distinct("addr"))
+			writeAddr = set(self.db.writes.distinct("addr"))
+			addresses = readAddr | writeAddr
+			del readAddr
+			del writeAddr
+			self.memAddrs = addresses
+
+		minAddr = min(addresses)
+		maxAddr = max(addresses)
+		
+		xBucketSize = self.target.getMaxTime() / xResolution
+		addresses = list(sorted(list(addresses)))
+		yBucketSize = len(addresses) / yResolution
+
+		curRow = None
+		result = []
+		maxVal = 0
+		perOne = max(1, 3)
+
+		for row in xrange(perOne):
+			y = row + startBlock	
+			curAddr = addresses[y*yBucketSize]
+			curEnd = addresses[(y+1) * yBucketSize]
+			if curRow is not None: result.append(curRow)
+			curRow = []
+			print "%08X-%08X" %(curAddr, curEnd)
+
+			curEnd = curAddr + yBucketSize
+			for x in xrange(xResolution):
+				curTime = x*xBucketSize
+				readCount = self.db.reads.find(	{'addr' : {"$gte" : curAddr, "$lt" : (curEnd) },
+					  		    	 'time' : {"$gte" : curTime, "$lt" : (curTime+xBucketSize)}
+							    	},
+								{ "_id" : 0, "time" : 1}).count()
+				writeCount = self.db.writes.find({'addr' : {"$gte" : curAddr, "$lt" : (curEnd) },
+					  		    	 'time' : {"$gte" : curTime, "$lt" : (curTime+xBucketSize)}
+							    	},
+								{ "_id" : 0, "time" : 1}).count()
+
+				info = { "readCount" : readCount, "writeCount" : writeCount, "firstAddr" : curAddr, "firstTime" : curTime }
+				curRow.append(info)
+		if curRow is not None: result.append(curRow)	
+		print ''
+		print len(result)
+		return json.dumps(result, indent=4)
+	
