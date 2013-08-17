@@ -71,20 +71,19 @@ class MemoryHistory:
 		self.db = target.getDB()
 		self.newDF = CycleFactory(self.db, target)
 		self.target = target
-		self.memAddrs = None
  
 	def previousWrite(self, addr, time):
-		l = list(self.db.writes.find( {"addr" : addr , "time" : { "$lt" :  time  }} ).sort("time", direction = -1).limit(1))
+		l = list(self.db.writes.find( {"addr" : addr , "time" : { "$lt" :  time  }} , {'_id' : 0, 'time' : 1 }).sort("time", direction = -1).limit(1))
 		if len(l) == 0: return None
 		return l[0]['time']
 
 	def nextRead(self, addr,time):
-		l = list(self.db.reads.find( {"addr" : addr , "time" : { "$gt" :  time  }} ).limit(1))
+		l = list(self.db.reads.find( {"addr" : addr , "time" : { "$gt" :  time  }} , { '_id' : 0, 'time' : 1 }).limit(1))
 		if len(l) == 0: return None
 		return l[0]['time']
 
 	def nextWrite(self, addr,time):
-		l = list(self.db.writes.find( {"addr" : addr , "time" : { "$gt" :  time  }} ).limit(1))
+		l = list(self.db.writes.find( {"addr" : addr , "time" : { "$gt" :  time  }}, { '_id' : 0, 'time' : 1 } ).limit(1))
 		if len(l) == 0: return None
 		return l[0]['time']
 
@@ -154,6 +153,8 @@ class MemoryHistory:
 
 			regName = dest[:dest.find("_")]
 			index = int(dest[dest.find("_")+1:])
+			if not nextCycle.regs.has_key(regName.upper()): return -1
+
 			fullVal = nextCycle.regs[regName.upper()]
 			val = (fullVal>>index)&0xff
 			return val
@@ -220,26 +221,35 @@ class MemoryHistory:
 			{'_id' : 0, "time" : 1})
 		return (sample is not None and sample['time'] < endTime)
 
+	def getAllAddresses(self):
+		#TODO: Move this into preprocessing
+		meta = self.db.meta.find_one()
+		if meta.has_key("memAddrs"):
+			return meta['memAddrs']
+	
+
+		readAddr = set(self.db.reads.distinct("addr"))
+		writeAddr = set(self.db.writes.distinct("addr"))
+		addresses = readAddr | writeAddr
+		addresses = list(sorted(list(addresses)))
+		del readAddr
+		del writeAddr
+
+		self.db.meta.update( {}, { "$set" : { "memAddrs" : addresses }})
+		return addresses
+
 
 	def getOverview(self, timeResolution = 30, addrResolution=30, startBlock = 0, startTime = None, endTime = None, startAddr = 0, endAddr = None):	
 		print "timeResolution = %d, addrResolution = %d" % (timeResolution, addrResolution)
-		if self.memAddrs is not None:
-			addresses = self.memAddrs
-		else:
-			readAddr = set(self.db.reads.distinct("addr"))
-			writeAddr = set(self.db.writes.distinct("addr"))
-			addresses = readAddr | writeAddr
-			del readAddr
-			del writeAddr
-			self.memAddrs = addresses
 
 		if endTime is None: endTime = self.target.getMaxTime()
 		if startTime is None: startTime = 0
 		if startAddr is None: startAddr = 0
 		if endAddr is None: endAddr=999
 
+		addresses = self.getAllAddresses()
+
 		timeBucketSize = (endTime - startTime) / timeResolution
-		addresses = list(sorted(list(addresses)))
 		if startAddr in addresses:
 			addresses = addresses[addresses.index(startAddr):]
 		if endAddr in addresses:
@@ -253,11 +263,13 @@ class MemoryHistory:
 
 		for row in xrange(perOne):
 			y = row + startBlock	
-			curAddr = addresses[y*addrBucketSize]
+			if y*addrBucketSize >= len(addresses): continue
 			if (y+1)*addrBucketSize >= len(addresses):
 				curEnd = 2**65
 			else:
 				curEnd = addresses[(y+1) * addrBucketSize]
+
+			curAddr = addresses[y*addrBucketSize]
 			if curRow is not None: result.append(curRow)
 			curRow = []
 			print "%08X-%08X" %(curAddr, curEnd)
@@ -267,7 +279,8 @@ class MemoryHistory:
 				curTime = x*timeBucketSize + startTime
 				wasRead = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
 				wasWritten = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
-				info = { "wasRead" : wasRead, "wasWritten" : wasWritten, "firstAddr" : curAddr, "firstTime" : curTime }
+				info = { "wasRead" : wasRead, "wasWritten" : wasWritten, "firstAddr" : curAddr, "firstTime" : curTime,
+					 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
 				curRow.append(info)
 
 		if curRow is not None: result.append(curRow)	

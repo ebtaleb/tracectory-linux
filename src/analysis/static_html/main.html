@@ -12,7 +12,9 @@
 	<script src="jquery.mousewheel.min.js"></script>
   <script src="raphael-min.js"></script>
 
+  <script src="zoomable.js"></script>
   <script src="app.js"></script>
+  <script src="icons.js"></script>
   <link rel="stylesheet" href="lib/themes/base/jquery.ui.all.css" />
   <style>
   #memView { width: 450px; height: 130px; padding: 0.5em; float: left; }
@@ -25,11 +27,17 @@
   #cpuState {float: left; font-family:monospace; font-size: 8pt; }
   #cpuState2 {float: left; font-family:monospace; font-size: 8pt; }
   #memoryLinks {left-padding: 150px; float: left;}
+  #zoomCanvas { height: 530px;  float: left;}
+  .monospace{ font-family: monospace; }
   .description { font-size: 10pt; }
   .smallButton { font-size: 10pt; }
  .aTop { font-size: 10pt; }
  .readMemLink {color: green; font-family: monospace;  }
  .writeMemLink {color: red; font-family: monospace;}
+ .innerPad { padding-top: 5px; }
+ #zoomView { height: 580px; }
+#lblCurTime {font-size: 8pt; }
+#memInfo {width: 180px; }
   </style>
 </head>
 <body>
@@ -61,35 +69,52 @@
 <div style="clear:both; top: 80%">
 
 
-<div id="timeView" class="ui-widget-content" >
-<div class="ui-widget-header">Global time control</div>
-	<!-- <button id="timeJump" class="smallButton">Jump to time</button> -->
-	<div id="timeslider"></div> 
+	<div id="timeView" >
+		<div style="float:left">
+			<span id="clockIcon2"></span>
+		</div>
+		<div style="float: left; width: 90%;">
+			<div id="timeslider"></div> 
+		</div>
+		<div style="float: left" id="lblCurTime">
+		</div>
+	 </div>
 </div>
- </div>
+<div style="clear: both"></div>
+<div id="zoomView" class="ui-widget-content" >
+	<div class="ui-widget-header">Zoomable memory view</div>
+	<div class="innerPad">
+		<div id="zoomOutIcon" style="background-color: #ddd; margin: 4px;"></div>
+		<div id="generalInfo" style="float: left; height: 500px; ">
+			<div id="zoomCanvas"> </div>
+		</div>
+		<div id="memInfo" style="float:left;">
+			<div><span id="dbIcon"></span><span id="lblAddr" class="monospace">Address</div>
+			<div><span id="clockIcon"></span><span id="lblTime" class="monospace">Time</div>
+			<div style="width: 100%">
+			Select regions to zoom in. Click on a single square to see (the beginning of) its
+			contents at the time of access.
+			</div>
+			
+		</div>
+	</div>
 </div>
+
 
 
 <div style="clear: both"></div>
 
-<div id="accordion">
-	<h3 class="aTop">General trace info</h3>
-	<div class="ui-widget-content">
-		<div id="generalInfo">
-		Loading...
-		</div>
-	</div>
-
+<!--
 	<h3 class="aTop">CPU view: Instructions and CPU state</h3>
 	<div id="instrView" class="ui-widget-content">
 		<p class="description">This view shows the most recently executed instructions and a couple of instructions executed before it. On the right two a raw database dump is shown. The engine uses notation tttt/iiiiiiiii, where tttt = timestamp and iiiii = address of instruction.
 		<div>
 		<textarea id="instrContents" rows="20" cols="50"></textarea>
 		<textarea id="cpuState" rows="20" cols="40"></textarea>
-		<!-- <textarea id="cpuState2" rows="30" cols="40"></textarea> -->
 		<div id="memoryLinks"></div>
 		</div>
-	</div>
+	</div> -->
+<!--
 	<h3 class="aTop">Memory access overview: Visualize direct memory accesses</h3>
 	<div id="rwGraph" class="ui-widget-content">
 		<p class="description">
@@ -97,9 +122,9 @@
 					</p>
 		<button id="btnRW">Draw</button>
 		<div id="rwGraphCanvas"></div>
-	</div>
+	</div> -->
 
-	<h3 class="aTop">Taint visualization: (file format/structure RE)</h3>
+<!--	<h3 class="aTop">Taint visualization: (file format/structure RE)</h3>
 	<div id="readGraph" class="ui-widget-content">
 		<p class="description">
 		This mode of analysis works as follows. We begin by marking a certain memory range of interest as "tainted". Thereafter 10 000 instructions are traced to determine if they access tainted regions. If an instruction accesses a tainted value, dataflow analysis is used to mark the regions affected by this data tainted as well. Moreover, any access to a tainted value is traced back to the original memory location and this information is then used to draw the graph. The main use case is to investigate unknown file formats / data structures.
@@ -109,10 +134,9 @@
 	</p>
 		<button id="btnForwardTaint">Draw</button>
 		<div id="readGraphCanvas"></div>
-	</div>
+	</div> -->
 
 	
-</div>
 <!-- Dialogs -->
 <div id="jumpToForm" title="Jump to a point in time">
 	<form>
@@ -182,10 +206,16 @@
 <div style="clear: both"></div>
 <div id="memView" class="ui-widget-content" >
 	<div class="ui-widget-header">Memory dump</div>
-	<input type="button" id="btnSetAddr" value="Set address"/>
-	<div style="clear:both;"></div>
-	<div id="hexView" style="float:left;"></div>
-	<div id="asciiView" style="float:left;"></div>
+	<div style="float: left;" >
+		<div style="clear:both;"></div>
+		<div id="hexView" style="float:left;"></div>
+		<div id="asciiView" style="float:left;"></div>
+	</div>
+	<div style="float: left">
+
+		<input type="button" id="btnSetAddr" value="Set address"/>
+		sdf
+	</div>
 </div>
 
 

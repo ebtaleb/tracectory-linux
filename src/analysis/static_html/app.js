@@ -37,47 +37,48 @@ function byteToHex(b){
 
 var lastMemAddr = 0;
 function refreshMemoryDump(address, time){
-var params = {"address" : address, 'time' : time};	
-$.getJSON("/memory/getMemJson", params).done(
-	function(data){
-		var bytes = data['bytes'];
-		var times = data['times'];
-		var hexData = "";
-		var asciiData = "";
-		var mostRecentTime = -1;
+	var params = {"address" : address, 'time' : time};	
+	lastMemAddr = address;
+	$.getJSON("/memory/getMemJson", params).done(
+		function(data){
+			var bytes = data['bytes'];
+			var times = data['times'];
+			var hexData = "";
+			var asciiData = "";
+			var mostRecentTime = -1;
 
-		console.log("refreshMem() callback");
-		for(var i = 0; i < times.length;i++)
-			mostRecentTime = Math.max(mostRecentTime, times[i]);
+			console.log("refreshMem() callback");
+			for(var i = 0; i < times.length;i++)
+				mostRecentTime = Math.max(mostRecentTime, times[i]);
 
-		for(var i = 0; i < bytes.length; i++){
-			if(i%8 == 0){
-				if(i>0){
-					asciiData += "<br/>";
-					hexData += "<br/>";
+			for(var i = 0; i < bytes.length; i++){
+				if(i%8 == 0){
+					if(i>0){
+						asciiData += "<br/>";
+						hexData += "<br/>";
+					}
+					hexData += formatDword(address + i) + " ";
 				}
-				hexData += formatDword(address + i) + " ";
+				hexed = byteToHex(bytes[i]);
+				style = "";
+				if(times[i] == mostRecentTime && mostRecentTime>=0){
+					hexData +="<font color=\"red\">";
+					asciiData +="<u>";
+					style = "color: #f00; font-weight: bold;";
+				}
+				hexData += "<a href=\"javascript:memClick(" + (address+i) + ", " + times[i] + ");\" style=\"" + style + "\">" + hexed + "</a> ";
+				asciiData += "<span style=\"" + style + "\">" + htmlEntities(formatChar(bytes[i])) + "</span>";
+				if(times[i] == mostRecentTime){
+					hexData += "</font>";
+					asciiData += "</u>";
+				}
+
 			}
-			hexed = byteToHex(bytes[i]);
-			style = "";
-			if(times[i] == mostRecentTime && mostRecentTime>=0){
-				hexData +="<font color=\"red\">";
-				asciiData +="<u>";
-				style = "color: #f00; font-weight: bold;";
-			}
-			hexData += "<a href=\"javascript:memClick(" + (address+i) + ", " + times[i] + ");\" style=\"" + style + "\">" + hexed + "</a> ";
-			asciiData += "<span style=\"" + style + "\">" + htmlEntities(formatChar(bytes[i])) + "</span>";
-			if(times[i] == mostRecentTime){
-				hexData += "</font>";
-				asciiData += "</u>";
-			}
+			$("#hexView").html(hexData);
+			$("#asciiView").html(asciiData);
 
 		}
-		$("#hexView").html(hexData);
-		$("#asciiView").html(asciiData);
-
-	}
-);
+	);
 
 }
 
@@ -150,7 +151,6 @@ function initSlider(){
 	$.getJSON("/getInfo").done(
 		function(data){
 			$("#timeslider").slider("option","max",data["maxTime"]);
-			$("#generalInfo").html(data["infoHtml"]);
 			for(var i = 0; i < data['traces'].length;i++){
 				var name = data['traces'][i];
 				$("#tracesToLoad").append("<li class=\"classy\" id=\"load_" + name + "\"><a href=\"#\">" + name + "</a></li>");
@@ -164,6 +164,7 @@ function initSlider(){
 	$("#timeslider").on("slidechange",
 		function(event, ui){
 			var val = $("#timeslider").slider("value");
+			$("#lblCurTime").html(htmlEntities(val));
 			refreshMemoryDump(lastMemAddr, val);
 			refreshCPUView(val);	
 		});
@@ -175,7 +176,8 @@ function initSlider(){
 function memClick(address, time){
 	if(time == -1) return;
 	//refreshGraph(address, time);
-	$("#timeslider").slider("value",time);
+	jumpToTime(time);
+	window.open("/view/renderDataflow?address=" + escape(address) + "&time=" + escape(time));
 }
 
 
@@ -206,10 +208,13 @@ function menuSelect(event, ui){
 	event.preventDefault();
 }
 
+function jumpToTime(newTime){
+	$("#timeslider").slider("value",newTime);
+}
 
 function onClickJump(){
 	var newTime = $("#txtTargetTime").val();
-	$("#timeslider").slider("value",newTime);
+	jumpToTime(newTime);
 
 }
 
@@ -494,6 +499,6 @@ $ (function() {
 		}
 	});
 
-
+	zoomGraphInit();
 
 });

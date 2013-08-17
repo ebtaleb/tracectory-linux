@@ -9,8 +9,10 @@ from pymongo import Connection as MongoClient
 
 class TargetTrace:
 	def __init__(self, saveName):
-		if os.path.exists("db/%s_info.html" % saveName):
-			client = MongoClient()
+
+		client = MongoClient()
+		
+		if saveName in client.database_names():
 			self.db = client[saveName]
 		else:
 			print saveName

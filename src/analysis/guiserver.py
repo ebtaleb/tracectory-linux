@@ -5,15 +5,17 @@ from threading import Lock
 from time import time as systemtime
 from TargetTrace import TargetTrace
 from taint import *
+from pymongo import Connection as MongoClient
 
-traces  = {}
-for curDb in os.listdir("db/"):
-	if curDb.endswith("_combined"):
-		name = curDb[:curDb.find("_combined")]
-		traces[name] = TargetTrace(name)
+client = MongoClient()
+traces = {}
+for name in client.database_names():
+	if name == "local" or name == "test": continue
+	print name
+	traces[name] = TargetTrace(name)
 
 if len(traces) == 0:
-	print >>sys.stderr, "No traces found in db/, no point in starting the GUI"
+	print >>sys.stderr, "No traces found in database, no point in starting the GUI"
 	print >>sys.stderr, "Create traces using the preprocess tools (see wiki for details)"
 	os.sys.exit(1)
 
