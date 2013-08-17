@@ -248,13 +248,13 @@ class MemoryHistory:
 		if endAddr is None: endAddr=999
 
 		addresses = self.getAllAddresses()
-
-		timeBucketSize = (endTime - startTime) / timeResolution
+		if startTime == endTime: return "[]"
+		timeBucketSize = max((endTime - startTime) / timeResolution, 1)
 		if startAddr in addresses:
 			addresses = addresses[addresses.index(startAddr):]
 		if endAddr in addresses:
-			addresses = addresses[:addresses.index(endAddr):]
-		addrBucketSize = len(addresses) / addrResolution
+			addresses = addresses[:addresses.index(endAddr)+1]
+		addrBucketSize = max(len(addresses) / addrResolution, 1)
 
 		curRow = None
 		result = []

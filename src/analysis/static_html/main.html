@@ -38,6 +38,7 @@
  #zoomView { height: 580px; }
 #lblCurTime {font-size: 8pt; }
 #memInfo {width: 180px; }
+#hidden { display: none; }
   </style>
 </head>
 <body>
@@ -56,11 +57,23 @@
 			</li>
 		</ul>
 	</li>
+	<li><a href="#">View</a>
+		<ul>
+			<li id="showZoom"><a href="#">Zoom overview</a></li>
+			<li id="showCpu"><a href="#">CPU</a></li>
+			<li id="showTaint"><a href="#">Taint view</a></li>
+		</ul>
+	</li>
 	<li><a href="#">Time</a>
 		<ul>
 			<li id="jumpToTime">
 				<a href="#">Jump to time...</a>	
 			</li>
+		</ul>
+	</li>
+	<li><a href="#">Memory</a>
+		<ul>
+			<li id="memRWGraph"><a href="#">Byte-by-byte trace</a></li>
 		</ul>
 	</li>
 </ul>
@@ -81,7 +94,9 @@
 	 </div>
 </div>
 <div style="clear: both"></div>
-<div id="zoomView" class="ui-widget-content" >
+
+
+<div id="zoomView" class="ui-widget-content hidden" >
 	<div class="ui-widget-header">Zoomable memory view</div>
 	<div class="innerPad">
 		<div id="zoomOutIcon" style="background-color: #ddd; margin: 4px;"></div>
@@ -101,31 +116,27 @@
 </div>
 
 
-
 <div style="clear: both"></div>
 
-<!--
-	<h3 class="aTop">CPU view: Instructions and CPU state</h3>
-	<div id="instrView" class="ui-widget-content">
-		<p class="description">This view shows the most recently executed instructions and a couple of instructions executed before it. On the right two a raw database dump is shown. The engine uses notation tttt/iiiiiiiii, where tttt = timestamp and iiiii = address of instruction.
-		<div>
+	<div id="instrView" class="ui-widget-content" style="display: none;">
+
+		<p class="description">This view shows the most recently executed instructions and a couple of instructions executed before it. On the right two a raw database dump is shown. The engine uses notation tttt/iiiiiiiii, where tttt = timestamp and iiiii = address of instruction.</p>
 		<textarea id="instrContents" rows="20" cols="50"></textarea>
 		<textarea id="cpuState" rows="20" cols="40"></textarea>
 		<div id="memoryLinks"></div>
-		</div>
-	</div> -->
-<!--
-	<h3 class="aTop">Memory access overview: Visualize direct memory accesses</h3>
-	<div id="rwGraph" class="ui-widget-content">
+	</div> 
+
+	<div id="rwView" class="ui-widget-content" style="display: none;">
 		<p class="description">
 			This view is used to visualize all memory reads and writes accessing a given memory range. Read accesses are colored green and write accesses red. Click on a memory access to move the time slider to the instruction that caused the access and check CPU view.<br/>
 					</p>
 		<button id="btnRW">Draw</button>
 		<div id="rwGraphCanvas"></div>
-	</div> -->
+	</div>
 
-<!--	<h3 class="aTop">Taint visualization: (file format/structure RE)</h3>
-	<div id="readGraph" class="ui-widget-content">
+
+	<div id="taintView" class="ui-widget-content" style="display: none;">
+	<div class="ui-widget-header">Forward taint</div>
 		<p class="description">
 		This mode of analysis works as follows. We begin by marking a certain memory range of interest as "tainted". Thereafter 10 000 instructions are traced to determine if they access tainted regions. If an instruction accesses a tainted value, dataflow analysis is used to mark the regions affected by this data tainted as well. Moreover, any access to a tainted value is traced back to the original memory location and this information is then used to draw the graph. The main use case is to investigate unknown file formats / data structures.
 		</p>
@@ -134,7 +145,7 @@
 	</p>
 		<button id="btnForwardTaint">Draw</button>
 		<div id="readGraphCanvas"></div>
-	</div> -->
+	</div> 
 
 	
 <!-- Dialogs -->
@@ -147,7 +158,7 @@
 	</form>
 </div>
 
-<div id="dlgRWGraph" title="Memory access overview">
+<div id="dlgRWGraph" title="Bytewise trace">
 	<fieldset>
 
 		<label for="txtAddressRW">Address (hex)</label>

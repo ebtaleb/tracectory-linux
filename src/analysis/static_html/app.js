@@ -1,5 +1,6 @@
 // Main GUI logic is here
 
+var visibleView;
 
 function htmlEntities(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -33,7 +34,12 @@ function byteToHex(b){
 	return hexed;
 
 }
-
+var oldView=null;
+function showView(newId){
+	if(oldView != null) $(oldView).hide();
+	$(newId).show();
+	oldView = newId;
+}
 
 var lastMemAddr = 0;
 function refreshMemoryDump(address, time){
@@ -203,8 +209,18 @@ function menuSelect(event, ui){
 		var val = $("#timeslider").slider("value");
 		$("#txtTargetTime").val(val);
 		$("#jumpToForm").dialog( "open" );
-		event.preventDefault();
+	}else if(id == "memRWGraph"){
+			showView("#rwView");
+			$("#dlgRWGraph").dialog( "open" );
+	}else if(id == "showZoom"){
+		showView("#zoomView");
+	}else if(id == "showCpu"){
+		showView("#instrView");
+	}else if(id == "showTaint"){
+		showView("#taintView");
 	}
+	
+	
 	event.preventDefault();
 }
 
@@ -474,14 +490,6 @@ $ (function() {
 		}
 	);
 
-	$("#btnRW").button().click(
-		function(event){
-			$("#dlgRWGraph").dialog("open");
-			//drawRWGraph();
-			event.preventDefault();
-		}
-
-	);
 
 	$("#timeslider").slider("value",0);
 
@@ -498,7 +506,7 @@ $ (function() {
 			$("#timeslider").slider("value", $("#timeslider").slider("value") -1);
 		}
 	});
-
+	showView("#zoomView");
 	zoomGraphInit();
 
 });
