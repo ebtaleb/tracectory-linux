@@ -1,6 +1,8 @@
+// this file implements the client side of the zoomable memory graph
+
 var mainPaper;
-var selectionRect;
-var backgroundRect;
+var selectionRect; //Used to show the selected areaa
+var backgroundRect; //An invisible rect that is used to capture all the mouse events 
 
 var startTime = -1;
 var endTime = -1;
@@ -11,6 +13,10 @@ var dataTable = new Array();
 
 var iconsLoaded = false;
 
+
+var curRound = 0; //This is incremented whenever a new zoom level is selected and is used to kill the old
+		  // AJAX pulls running as soon as the information is not needed.
+
 function zoomOut(){
 	startTime = endTime = -1;
 	startAddr = endAddr = -1;
@@ -18,6 +24,7 @@ function zoomOut(){
 }
 
 function zoomGraphInit(){
+	var thisRound = ++curRound;
 	width = 710; height = 520;
 	if(mainPaper == null)
 		mainPaper = new Raphael(document.getElementById("zoomCanvas"), width, height);
@@ -25,7 +32,7 @@ function zoomGraphInit(){
 	mainPaper.clear();
 
 	selectionRect = mainPaper.rect(0,0,0,0).attr( {"fill" : "#00f", "opacity" : 0.5 });
-	pullZoomGraphData(0);
+	pullZoomGraphData(0, thisRound);
 	backgroundRect = mainPaper.rect(0,0,width, height);
 	backgroundRect.mousedown( function(event) {
 		selecting = true;
@@ -48,17 +55,18 @@ function zoomGraphInit(){
 		var p = new Raphael(document.getElementById("clockIcon2"), 32, 32);
 		p.clear();
 		p.path(icon_clock).attr( { "fill" : "#000", "stroke" : "none" });
-
-		var p = new Raphael(document.getElementById("zoomOutIcon"), 32, 32);
-		p.clear();
-		var path = p.path(icon_zoomout).attr( { "fill" : "#000", "stroke" : "none" });
-		path.click(zoomOut);
-		
-		
+	
 		var p = new Raphael(document.getElementById("dbIcon"), 32, 32);
 		p.clear();
 		p.path(icon_db).attr( { "fill" : "#000", "stroke" : "none" });
 		iconsLoaded = true;
+
+		$("#btnZoomOut").button( { text: false, icons : { primary : "ui-icon-zoomout" }}).click(zoomOut);
+		$("#btnRWTrace").button( { text: false, icons : { primary : "ui-icon-circle-plus" }}).click( 
+			function() {
+				openRWTraceDialog(startAddr, endAddr, startTime, endTime);
+			}
+		);
 	}	
 
 }
@@ -104,19 +112,21 @@ function performSelection(){
 	var endEntry = toAddr( selectionRect.attr("x") + selectionRect.attr("width") , 
 			selectionRect.attr("y") + selectionRect.attr("height"));
 
+	if(startEntry.firstTime == endEntry.firstTime || startEntry.firstAddr == endEntry.firstAddr) {
+		//Only one square selected, let's show memory contents
+		jumpToTime(startEntry.firstTime);
+		refreshMemoryDump(startEntry.firstAddr, startEntry.firstTime);
+		return;
+	}
+
 	startTime = startEntry.firstTime;
 	endTime = endEntry.lastTime;
 	startAddr = startEntry.firstAddr;
 	endAddr = endEntry.lastAddr;
-	if(startEntry.firstTime == endEntry.firstTime || startEntry.firstAddr == endEntry.firstAddr) {
-		//Only one square selected, let's show memory contents
-		jumpToTime(startTime);
-		refreshMemoryDump(startAddr, startTime);
-		return;
-	}
+
 
 	mainPaper.clear();
-	console.log("Calling main");
+	console.log("Calling init again at a new zoom level");
 	zoomGraphInit();
 }
 
@@ -124,7 +134,7 @@ var perX, perY;
 var selecting = false;
 
 //This fetches a block of data from server and renders it into the Raphael canvas
-function pullZoomGraphData( blockNum){
+function pullZoomGraphData( blockNum, thisRound){
 	var params = { 'timeResolution' : 100, 'addrResolution' : 140, 'startBlock' : blockNum, 'startTime' : startTime, 'endTime' : endTime, 'startAddr' : startAddr, 'endAddr' : endAddr};
 	perX = 5;
 	perY = 5;
@@ -132,8 +142,9 @@ function pullZoomGraphData( blockNum){
 	if( blockNum >= params['addrResolution']   ){
 		return;
 	}
-	
-	$.getJSON("/memory/wholeProgram", params).done(function(data){
+	if(thisRound<curRound) return;
+	$.getJSON("/memory/zoom", params).done(function(data){
+		if(thisRound<curRound) return;
 		for(var addrIdx = 0; addrIdx < data.length; addrIdx++){
 			dataTable[addrIdx + blockNum] = new Array();
 			for(var timeIdx = 0; timeIdx < data[addrIdx].length;timeIdx++){
@@ -152,13 +163,12 @@ function pullZoomGraphData( blockNum){
 				var greenChar = ( entry.wasRead  ? "f" : "0");
 				rect.attr( { "fill" : "#" + redChar + greenChar + "0" } )
 				rect.node.info = entry;
-				rect.node.positionY = yPosition;
-				rect.node.positionX = xPosition;
 			}
 
 		}
+		//If still some data, pull next set of squares from server recursively
 		if(data.length != 0)
-			pullZoomGraphData(blockNum + data.length);
+			pullZoomGraphData(blockNum + data.length, thisRound);
 	
 	});
 

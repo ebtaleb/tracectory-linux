@@ -17,7 +17,7 @@
   <script src="icons.js"></script>
   <link rel="stylesheet" href="lib/themes/base/jquery.ui.all.css" />
   <style>
-  #memView { width: 450px; height: 130px; padding: 0.5em; float: left; }
+  #memView { width: 750px; height: 130px; padding: 0.5em; float: left; }
   #graphView { height: 150px; padding: 0.5em; float: left; }
   #timeJumpDiv { float: left; }
   #timeslider { margin: 10px; }
@@ -37,8 +37,21 @@
  .innerPad { padding-top: 5px; }
  #zoomView { height: 580px; }
 #lblCurTime {font-size: 8pt; }
-#memInfo {width: 180px; }
+#memInfo {width: 190px; float: left;}
 #hidden { display: none; }
+
+.legendColor {width: 20px; height: 20px;  border: 1px solid; float: left; margin: 2px;}
+.red { background-color: #f00; }
+.green { background-color: #0f0; }
+.yellow { background-color: #ff0; }
+#curExec { padding-left: 15px; font-size: 10pt; }
+
+#toolbar {
+	padding: 5px;
+	margin: 2px;
+}
+#toolbar.button { width: 30px; height: 30px; }
+
   </style>
 </head>
 <body>
@@ -59,9 +72,10 @@
 	</li>
 	<li><a href="#">View</a>
 		<ul>
-			<li id="showZoom"><a href="#">Zoom overview</a></li>
+			<li id="showZoom"><a href="#">Memory access graph</a></li>
 			<li id="showCpu"><a href="#">CPU</a></li>
 			<li id="showTaint"><a href="#">Taint view</a></li>
+			<li id="showRW"><a href="#">Bytewise memory trace</a></li>
 		</ul>
 	</li>
 	<li><a href="#">Time</a>
@@ -91,6 +105,8 @@
 		</div>
 		<div style="float: left" id="lblCurTime">
 		</div>
+		<div style="clear: both"></div>
+		<div id="curExec">...</div>
 	 </div>
 </div>
 <div style="clear: both"></div>
@@ -99,16 +115,27 @@
 <div id="zoomView" class="ui-widget-content hidden" >
 	<div class="ui-widget-header">Zoomable memory view</div>
 	<div class="innerPad">
-		<div id="zoomOutIcon" style="background-color: #ddd; margin: 4px;"></div>
+		<div id="toolbar" class="ui-widget-header ui-corner-all">
+			<button id="btnZoomOut">Zoom out all the way</button>
+			<button id="btnRWTrace">Perform byte/instruction level trace</button>
+		</div>
 		<div id="generalInfo" style="float: left; height: 500px; ">
 			<div id="zoomCanvas"> </div>
 		</div>
-		<div id="memInfo" style="float:left;">
+		<div id="memInfo">
 			<div><span id="dbIcon"></span><span id="lblAddr" class="monospace">Address</div>
 			<div><span id="clockIcon"></span><span id="lblTime" class="monospace">Time</div>
 			<div style="width: 100%">
 			Select regions to zoom in. Click on a single square to see (the beginning of) its
 			contents at the time of access.
+			</div>
+			<div style="width: 100%; border: 1px dashed; padding: 5px;">
+				<h4>Legend</h4>	
+				<div class="legendColor red"></div>&nbsp;Written
+				<div style="clear: both"></div>
+				<div class="legendColor green"></div>&nbsp;Read
+				<div style="clear: both"></div>
+				<div class="legendColor yellow"></div>&nbsp;Read&written
 			</div>
 			
 		</div>
@@ -127,10 +154,11 @@
 	</div> 
 
 	<div id="rwView" class="ui-widget-content" style="display: none;">
+
+	<div class="ui-widget-header">Byte-by-byte memory trace</div>
 		<p class="description">
 			This view is used to visualize all memory reads and writes accessing a given memory range. Read accesses are colored green and write accesses red. Click on a memory access to move the time slider to the instruction that caused the access and check CPU view.<br/>
 					</p>
-		<button id="btnRW">Draw</button>
 		<div id="rwGraphCanvas"></div>
 	</div>
 
@@ -225,7 +253,7 @@
 	<div style="float: left">
 
 		<input type="button" id="btnSetAddr" value="Set address"/>
-		sdf
+		Click on a byte to draw a dataflow graph.
 	</div>
 </div>
 

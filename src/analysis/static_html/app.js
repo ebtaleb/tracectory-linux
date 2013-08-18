@@ -8,7 +8,7 @@ function htmlEntities(str) {
 
 function formatDword(d){
 	var temp =("000000000"+d.toString(16));
-	return temp.substring(temp.length-8);
+	return temp.substring(temp.length-8).toUpperCase();
 }
 
 function formatWord(d){
@@ -103,6 +103,8 @@ function refreshCPUView(time){
 			}	
 			$("#instrContents").html(output);
 			$("#cpuState").text( data['dump']);
+			var curInstruction = instrs[instrs.length - 1];
+			$("#curExec").html(formatDword(curInstruction[1]) + " " + htmlEntities(curInstruction[2]));
 		}
 
 	);
@@ -210,14 +212,15 @@ function menuSelect(event, ui){
 		$("#txtTargetTime").val(val);
 		$("#jumpToForm").dialog( "open" );
 	}else if(id == "memRWGraph"){
-			showView("#rwView");
-			$("#dlgRWGraph").dialog( "open" );
+		$("#dlgRWGraph").dialog( "open" );
 	}else if(id == "showZoom"){
 		showView("#zoomView");
 	}else if(id == "showCpu"){
 		showView("#instrView");
 	}else if(id == "showTaint"){
 		showView("#taintView");
+	}else if(id == "showRW"){
+		showView("#rwView");
 	}
 	
 	
@@ -370,15 +373,30 @@ function drawTaintVis(address, time){
 }
 
 
-//////////// Memory access overview /////////////////
+//////////// Byte-by-byte memory trace /////////////////
 function rwTraceOnClick(){
+
+
+	showView("#rwView");
+
 	var address = $("#txtAddressRW").val();
 	var bytes = $("#txtBytesRW").val();
 	var time = $("#txtTimeRW").val();
 	var cycles = $("#txtCyclesRW").val();
 	var compress = $("#chkCompress").prop("checked") ? 1 : 0;
+
 	drawRWGraph(address, parseInt(bytes), parseInt(time), parseInt(cycles), compress);
 }
+
+function openRWTraceDialog(startAddr, endAddr, startTime, endTime){
+	$("#txtAddressRW").val(startAddr.toString(16));
+	$("#txtBytesRW").val( endAddr - startAddr);
+	$("#txtTimeRW").val(startTime);
+	$("#txtCyclesRW").val(endTime - startTime);
+	
+	$("#dlgRWGraph").dialog( "open" );
+}
+
 function initRwGraphDlg(){
 	$("#dlgRWGraph").dialog({
 		autoOpen: false,
@@ -410,7 +428,7 @@ function drawRWGraph(address, bytes, time, cycles, compress){
 			'cycles' : cycles,
 			'compress' : compress
 	};
-	$.getJSON("/memoryAccessEvents", params).done(
+	$.getJSON("/memory/rwTrace", params).done(
 	function(response){
 		var events = response['graph'];
 		var paper;
@@ -431,16 +449,23 @@ function drawRWGraph(address, bytes, time, cycles, compress){
 
 
 		var rangeSize = response['rangeSize'];
+
+		graphXOffset = 160;
 		ySize = 6;
-		width = 10 + rangeSize * 10 + 15;
+		width = graphXOffset + 10 + rangeSize * 10 + 15;
 		height = 10 + events.length * ySize + 15;
 		paper.setSize(width + 1, height + 1);
-		drawAxis(paper, width, height, "Memaddr", "Time");
 		for(y=0;y<events.length;y++){
+			var instrInfo = events[y][0];
+			var text = formatDword(instrInfo.a) + " " + instrInfo.d;
+			var textObj = paper.text(0, 10 + y * ySize, text);
+			textObj.attr( {'text-anchor' : 'start' , 'font-family' : 'monospace', 'font-size' : '6'});
+			textObj.data("time", instrInfo.t);
+			textObj.click( function() { moveToTime(this.data("time")); });
 			for(i = 0; i < events[y][1].length; i++){
 				x = events[y][1][i][0];
 				type = events[y][1][i][1];
-				paper.rect(10 + x * 10, 10 + y * ySize, 10 , ySize)
+				paper.rect(graphXOffset + 10 + x * 10, 10 + y * ySize, 10 , ySize)
 				.attr({"fill" : (type == "W") ? "#f00" : "#0f0"})
 				.data("time", events[y][0])
 				.click(function(){
@@ -460,27 +485,11 @@ function moveToTime(newTime){
 var rwPaper = null;
 
 
-function drawAxis(paper, width, height, xTitle, yTitle){
-	paper.path("M5,5L5," + height +
-		   "L0," + (height - 5) + 
-		   "M5," + height + 
-		   "L10," + (height - 5))
-		.attr({ 'stroke-width' : 2 } );
-	paper.path("M5,5L" + width + ",5"+
-		   "L" + (width-5) + ",0" + "M"+width+",5L"+(width-5)+",10")
-		.attr({'stroke-width' : 2 } );
-	paper.text(10, height/2, yTitle).transform("r90");
-	paper.text(width/2,10, xTitle);
 
-}
+//////////////////////////////////////////////////////////////////////////
 
 $ (function() {
 	
-	//$( "#graphView" ).draggable().resizable({});
-	//$("#graphView").scroll();
-	//$( "#memView").resizable();
-	//$( "#instrView").draggable().resizable();
-	$("#accordion").accordion();
 	initDialogs();
 	initSlider();
 	$("#btnForwardTaint").button().click(

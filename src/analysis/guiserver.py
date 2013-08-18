@@ -107,7 +107,7 @@ class MemoryApi(object):
 		return json.dumps( { 'status' : 'ok', 'reads' : reads, 'writes' : writes } )
 
 	@cherrypy.expose
-	def wholeProgram(self, timeResolution, addrResolution, startBlock, startTime, endTime, startAddr, endAddr):
+	def zoom(self, timeResolution, addrResolution, startBlock, startTime, endTime, startAddr, endAddr):
 		target = getTrace()
 		timeResolution = int(timeResolution)
 		addrResolution = int(addrResolution)
@@ -126,6 +126,47 @@ class MemoryApi(object):
 			res = mh.getOverview(timeResolution = timeResolution, addrResolution = addrResolution, startBlock = startBlock,
 				startTime = startTime, endTime = endTime, startAddr = startAddr, endAddr = endAddr)
 			return res
+
+	@cherrypy.expose
+	def rwTrace(self, address, bytes, time, cycles, compress):
+		target = getTrace()
+		address = parseExpr(address)
+		time = int(time)
+		bytes = int(bytes)
+		memRange = range(address, address + bytes)
+		cycles = int(cycles)
+		compress = bool(int(compress))
+
+		rangeSize = len(memRange)
+		#We trust that there are not more than one million memory accesses
+		complexity = rangeSize * 20 + cycles
+		if complexity > 500000:
+			return json.dumps({ 'status' : 'error',
+			'error' : 'Estimated complexity exceeds server bounds, rejected!'})
+			
+
+		with target.getLock():
+			mh = target.getMemoryHistory()
+			evts = mh.iterMemoryEvents(memRange, time, time + cycles, groupByTime=True)
+			evts, newIndexes = mh.memoryGraph(list(evts), compress = compress, minAddr = min(memRange))
+		
+			annotatedEvts = []
+			f = target.getCycleFactory()
+			for evt in evts:
+				curTime, points = evt
+				cycle = f.getCycle(curTime)
+				newInfo = { 't' : curTime, 'a' : cycle.getPC(), 'd' : cycle.getDisasm() }
+				annotatedEvts.append( (newInfo, points) )
+
+		if compress: rangeSize = len(newIndexes)
+
+		return json.dumps(
+			{'status' : 'ok',
+		 	 'graph' : annotatedEvts,
+			 'rangeSize' : rangeSize
+			}, indent = 4)
+
+
 
 class TaintApi(object):
 	@cherrypy.expose
@@ -197,37 +238,6 @@ class GuiServer(object):
 
 		return json.dumps( {'status' : 'ok' } )
 
-	def memoryAccessEvents(self, address, bytes, time, cycles, compress):
-		target = getTrace()
-		address = parseExpr(address)
-		time = int(time)
-		bytes = int(bytes)
-		memRange = range(address, address + bytes)
-		cycles = int(cycles)
-		compress = bool(int(compress))
-
-		rangeSize = len(memRange)
-		#We trust that there are not more than one million memory accesses
-		complexity = rangeSize * 20 + cycles
-		if complexity > 500000:
-			return json.dumps({ 'status' : 'error',
-			'error' : 'Estimated complexity exceeds server bounds, rejected!'})
-			
-
-		with target.getLock():
-			mh = target.getMemoryHistory()
-			evts = mh.iterMemoryEvents(memRange, time, time + cycles, groupByTime=True)
-			evts, newIndexes = mh.memoryGraph(list(evts), compress = compress, minAddr = min(memRange))
-
-		if compress: rangeSize = len(newIndexes)
-
-		return json.dumps(
-			{'status' : 'ok',
-		 	 'graph' : evts,
-			 'rangeSize' : rangeSize
-			}, indent = 4)
-
-	memoryAccessEvents.exposed = True
 	index.exposed = True
 	getInfo.exposed = True
 	loadTrace.exposed = True
