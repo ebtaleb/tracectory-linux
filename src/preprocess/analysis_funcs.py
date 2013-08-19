@@ -19,6 +19,10 @@ import pickle
 
 from data_sources import FossileStream, Trace
 
+def sanitize(s): 
+	if type(s) == str:
+		return s.replace(".","__")
+	return s
 
 def toReplaceDict(origRegs):
 	result = {}
@@ -102,7 +106,7 @@ def buildMatrix_old(affects, regs, debug = False):
 
 			#readSet = set([convertToKey(x, t.regs) for x in readStuff])
 			for curWrite in listOfLocationsWritten:
-				result[curWrite] |= readSet
+				result[sanitize(curWrite)] |= readSet
 	return result
 
 

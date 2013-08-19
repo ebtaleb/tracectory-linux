@@ -81,9 +81,14 @@ def getSliceBytes(srcObj, regs):
 		else:
 			raise ValueError
 
+def sanitize(s): 
+	if type(s) == str:
+		return s.replace(".","__")
+	return s
+
 def getIdBytes(inputExpr, regs):
 	if "_" in inputExpr.name: raise NotImplementedError
-	return [("%s_%d" % (inputExpr.name, i)) for i in xrange(0,inputExpr.size,8)]
+	return [("%s_%d" % (sanitize(inputExpr.name), i)) for i in xrange(0,inputExpr.size,8)]
 
 
 def getDataSource(sourceObject, regs, byteNum):
@@ -137,9 +142,9 @@ def listUnikeys(sourceObject, regs):
 	elif isinstance(sourceObject, ExprId):
 		if "_" in sourceObject.name:
 			assert sourceObject.size == 8
-			return [sourceObject.name]
+			return [sanitize(sourceObject.name)]
 		size = max(1, sourceObject.size/8)
-		return ["%s_%d" % (sourceObject.name,i*8) for i in xrange(size)]
+		return ["%s_%d" % (sanitize(sourceObject.name),i*8) for i in xrange(size)]
 	elif isinstance(sourceObject, ExprSlice):
 		sliceBytes = getSliceBytes(sourceObject, regs)
 		return sliceBytes
@@ -153,7 +158,7 @@ def buildMatrix_new(affects, regs):
 		written =  listUnikeys(curAffect.dst, regs)
 		for byteIndex in xrange(0, len(written)):
 			#XXX: Put a switch for endianness?
-			result[written[byteIndex]] = getDataSource(curAffect.src, regs, byteIndex)
+			result[sanitize(written[byteIndex])] = getDataSource(curAffect.src, regs, byteIndex)
 			#print "to ", written[byteIndex], " ", result[written[byteIndex]]
 	return result
 

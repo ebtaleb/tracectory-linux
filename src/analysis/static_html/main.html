@@ -44,14 +44,15 @@
 .red { background-color: #f00; }
 .green { background-color: #0f0; }
 .yellow { background-color: #ff0; }
-#curExec { padding-left: 15px; font-size: 10pt; }
+#curExec { padding-left: 15px; font-size: 10pt; float: left; margin-right: 5px; }
 
 #toolbar {
 	padding: 5px;
 	margin: 2px;
 }
 #toolbar.button { width: 30px; height: 30px; }
-
+#memButtons { height: 10px; font-size: 10pt;}
+#memButtons.button { width: 10px; height:10px; }
   </style>
 </head>
 <body>
@@ -107,6 +108,7 @@
 		</div>
 		<div style="clear: both"></div>
 		<div id="curExec">...</div>
+		<div id="memButtons"><div id="empty"></div></div>
 	 </div>
 </div>
 <div style="clear: both"></div>
@@ -157,7 +159,7 @@
 
 	<div class="ui-widget-header">Byte-by-byte memory trace</div>
 		<p class="description">
-			This view is used to visualize all memory reads and writes accessing a given memory range. Read accesses are colored green and write accesses red. Click on a memory access to move the time slider to the instruction that caused the access and check CPU view.<br/>
+			This view is used to visualize all memory reads and writes accessing a given memory range. Read accesses are colored green and write accesses red. Click on an instruction to move the time slider to the point in time where the memory was accessed (see CPU view).<br/>
 					</p>
 		<div id="rwGraphCanvas"></div>
 	</div>

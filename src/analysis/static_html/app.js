@@ -89,6 +89,14 @@ function refreshMemoryDump(address, time){
 }
 
 
+function createButton(uiClass, time){
+	var button = $("<div></div>");
+	button.addClass( 'ui-icon');
+	button.addClass( uiClass);
+	button.css( {'float' : 'left' });
+	return button;
+
+}
 
 function refreshCPUView(time){
 	$.getJSON("/cpu/getInstructions", {'time' : time}).done(
@@ -112,10 +120,23 @@ function refreshCPUView(time){
 	$.getJSON("/memory/getRW", {'time' : time}).done(
 		function(data){
 			//Reads
+
+			var buttons = $("#memButtons");
+			buttons.empty();
 			readHtml = ""; writeHtml ="";
 			if(data['reads'].length != 0){
 				readHtml = "Read:<ul>\n";
 				for(i = 0; i < data['reads'].length; i++){
+					var span = $("<span> </span>");
+					span.attr("id",i);
+					span.html( formatDword(data['reads'][i]['addr'])  + "&nbsp;");
+					span.css( {'color' : '#080' , 'float' : 'left'} )
+					span.append( createButton('ui-icon-circle-arrow-w', 123));
+					span.append( createButton('ui-icon-circle-arrow-e', 123));
+					span.append( createButton('ui-icon-arrowthick-1-w', 123));
+					span.append( createButton('ui-icon-arrowthick-1-e', 123));
+					buttons.append(span);
+					span = null;
 					prevWrite = data['reads'][i]['prevWrite'];
 					readHtml += "<li class=\"readMemLink\">";
 					readHtml += formatDword(data['reads'][i]['addr']);	

@@ -2,6 +2,7 @@ from Cycle import *
 from taint import *
 from collections import defaultdict
 import json
+import time
 
 class MemoryAccess:
 	"""MemoryAccess objects represent a memory access (read/write) at a certain
@@ -65,12 +66,23 @@ class MemoryLocation:
 	def __repr__(self):
 		return "<MemoryLocation: %08X (writes: %d, reads: %d)>" % (int(self.loc), self.numWrites(), self.numReads())
 
+#import zmq
+#context = zmq.Context()
+class RangeServer:
+	def __init__(self, port):
+		self.socket = context.socket(zmq.REQ)
+		self.socket.connect("tcp://localhost:%d" % port)
+	def query(self, startX, endX, startY, endY):
+		self.socket.send("%08X %08X %d %d" % (startX, endX, startY, endY))
+		res = self.socket.recv()
+		return res[0] == '1'
 
 class MemoryHistory:
 	def __init__(self, target):
 		self.db = target.getDB()
 		self.newDF = CycleFactory(self.db, target)
 		self.target = target
+		self.addrCache = None
  
 	def previousWrite(self, addr, time):
 		l = list(self.db.writes.find( {"addr" : addr , "time" : { "$lt" :  time  }} , {'_id' : 0, 'time' : 1 }).sort("time", direction = -1).limit(1))
@@ -217,14 +229,23 @@ class MemoryHistory:
 		return compressedList, sortedAddrs
 
 	def checkForRange(self, table, startAddr, endAddr, startTime, endTime):
+		#Returns (wasFound, allowedSkip)
 		sample = table.find_one({'addr' : {"$gte" : startAddr, "$lt" : endAddr }, 'time' : {"$gte" : startTime}}, 
 			{'_id' : 0, "time" : 1})
-		return (sample is not None and sample['time'] < endTime)
+		if sample is None:
+			return (False, 9999999999999999)
+		if sample['time'] < endTime:
+			return True, -1
+		return False, endTime
 
 	def getAllAddresses(self):
 		#TODO: Move this into preprocessing
+		if self.addrCache is not None:
+			return self.addrCache
+
 		meta = self.db.meta.find_one()
 		if meta.has_key("memAddrs"):
+			self.addrCache = meta['memAddrs']
 			return meta['memAddrs']
 	
 
@@ -261,6 +282,12 @@ class MemoryHistory:
 		maxVal = 0
 		perOne = 8
 
+		#rServer = RangeServer(5665)
+		#wServer = RangeServer(5775)
+
+		perfStartTime = time.time()
+		queries = 1 #XXX: No div by zero
+		#fp = open("tmp.tmp","w")
 		for row in xrange(perOne):
 			y = row + startBlock	
 			if y*addrBucketSize >= len(addresses): continue
@@ -275,15 +302,35 @@ class MemoryHistory:
 			print "%08X-%08X" %(curAddr, curEnd)
 
 			curEnd = curAddr + addrBucketSize
+			nextSkip = 0
+			#fp.write("0 0 0 0\n")
 			for x in xrange(timeResolution):
 				curTime = x*timeBucketSize + startTime
-				wasRead = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
-				wasWritten = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
+				#fp.write("%X %x %d %d\n" % (curAddr, curEnd, curTime, curTime + timeBucketSize))	
+				if curTime<nextSkip:
+					wasRead = False
+					wasWritten = False
+					skip1 = skip2 = nextSkip
+				else:
+					
+					wasRead, skip1 = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
+					wasWritten, skip2 = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
+					#wasRead = rServer.query(curAddr, curEnd, curTime, curTime + timeBucketSize)
+					#wasWritten = wServer.query(curAddr, curEnd, curTime, curTime + timeBucketSize)
+					#skip1 = skip2 = -1
 				info = { "wasRead" : wasRead, "wasWritten" : wasWritten, "firstAddr" : curAddr, "firstTime" : curTime,
 					 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
+				if wasRead or wasWritten:
+					nextSkip = -1
+				else:
+					nextSkip = min(skip1, skip2)
 				curRow.append(info)
+				queries += 2
 
 		if curRow is not None: result.append(curRow)	
+		perfEndTime = time.time()
+
+		print (perfEndTime - perfStartTime) / (queries), " per query"
 
 		return json.dumps(result, indent=4)
 	

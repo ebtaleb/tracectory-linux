@@ -101,7 +101,8 @@ class MemoryApi(object):
 
 			for write in listOfWrites:
 				writes.append( { 'addr' : write,
-						 'nextRead' : mh.nextRead(write, time)
+						 'nextRead' : mh.nextRead(write, time),
+						 'nextWrite' : mh.nextWrite(write, time)
 						})
 			
 		return json.dumps( { 'status' : 'ok', 'reads' : reads, 'writes' : writes } )

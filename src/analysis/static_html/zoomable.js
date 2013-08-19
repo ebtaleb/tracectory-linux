@@ -114,8 +114,8 @@ function performSelection(){
 
 	if(startEntry.firstTime == endEntry.firstTime || startEntry.firstAddr == endEntry.firstAddr) {
 		//Only one square selected, let's show memory contents
-		jumpToTime(startEntry.firstTime);
-		refreshMemoryDump(startEntry.firstAddr, startEntry.firstTime);
+		jumpToTime(startEntry.lastTime);
+		refreshMemoryDump(startEntry.firstAddr, startEntry.lastTime);
 		return;
 	}
 
@@ -155,7 +155,7 @@ function pullZoomGraphData( blockNum, thisRound){
 					continue;
 				}
 
-
+				if(thisRound<curRound) return;
 				var xPosition = (addrIdx + blockNum) * perX;
 				var yPosition = timeIdx * perY;
 				var rect = mainPaper.rect(xPosition, yPosition, perX, perY);
