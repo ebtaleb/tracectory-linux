@@ -66,16 +66,19 @@ class MemoryLocation:
 	def __repr__(self):
 		return "<MemoryLocation: %08X (writes: %d, reads: %d)>" % (int(self.loc), self.numWrites(), self.numReads())
 
-#import zmq
-#context = zmq.Context()
+import zmq
+context = zmq.Context()
 class RangeServer:
 	def __init__(self, port):
 		self.socket = context.socket(zmq.REQ)
 		self.socket.connect("tcp://localhost:%d" % port)
-	def query(self, startX, endX, startY, endY):
-		self.socket.send("%08X %08X %d %d" % (startX, endX, startY, endY))
+	def query(self, startX, endX, startY, yIncrement, yResolution):
+		queryStr = "%d %d %d %d %d" % (startX, endX, startY, yIncrement, yResolution)
+		print queryStr
+		self.socket.send(queryStr)
 		res = self.socket.recv()
-		return res[0] == '1'
+		print "-",res,"-"
+		return [int(x) for x in res if x in ("0","1")]
 
 class MemoryHistory:
 	def __init__(self, target):
@@ -280,13 +283,12 @@ class MemoryHistory:
 		curRow = None
 		result = []
 		maxVal = 0
-		perOne = 8
+		perOne = addrResolution
 
-		#rServer = RangeServer(5665)
-		#wServer = RangeServer(5775)
+		rServer = RangeServer(5665)
+		wServer = RangeServer(5775)
 
 		perfStartTime = time.time()
-		queries = 1 #XXX: No div by zero
 		#fp = open("tmp.tmp","w")
 		for row in xrange(perOne):
 			y = row + startBlock	
@@ -304,6 +306,8 @@ class MemoryHistory:
 			curEnd = curAddr + addrBucketSize
 			nextSkip = 0
 			#fp.write("0 0 0 0\n")
+			readRes = rServer.query(curAddr, curEnd, startTime, timeBucketSize, timeResolution);
+			writeRes = wServer.query(curAddr, curEnd, startTime, timeBucketSize, timeResolution);
 			for x in xrange(timeResolution):
 				curTime = x*timeBucketSize + startTime
 				#fp.write("%X %x %d %d\n" % (curAddr, curEnd, curTime, curTime + timeBucketSize))	
@@ -313,11 +317,13 @@ class MemoryHistory:
 					skip1 = skip2 = nextSkip
 				else:
 					
-					wasRead, skip1 = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
-					wasWritten, skip2 = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
+					#wasRead, skip1 = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
+					#wasWritten, skip2 = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
 					#wasRead = rServer.query(curAddr, curEnd, curTime, curTime + timeBucketSize)
 					#wasWritten = wServer.query(curAddr, curEnd, curTime, curTime + timeBucketSize)
-					#skip1 = skip2 = -1
+					wasRead = readRes[x]
+					wasWritten = writeRes[x]
+					skip1 = skip2 = -1
 				info = { "wasRead" : wasRead, "wasWritten" : wasWritten, "firstAddr" : curAddr, "firstTime" : curTime,
 					 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
 				if wasRead or wasWritten:
@@ -325,12 +331,11 @@ class MemoryHistory:
 				else:
 					nextSkip = min(skip1, skip2)
 				curRow.append(info)
-				queries += 2
 
 		if curRow is not None: result.append(curRow)	
 		perfEndTime = time.time()
 
-		print (perfEndTime - perfStartTime) / (queries), " per query"
+		print (perfEndTime - perfStartTime),"seconds"
 
 		return json.dumps(result, indent=4)
 	
