@@ -17,6 +17,7 @@
 #include <fstream>
 #include <zmq.hpp> //XXX: Add libzmq.dev to requirements
 #include <cstring>
+#include <map>
 
 using namespace std;
 
@@ -36,20 +37,25 @@ void loadInput(string filename){
 }
 int serverPort;
 
-
+map<string, rangetree> trees;
 int main(int argc, char** argv){
-	if(argc != 3){
-		cerr << "server <file> <port>" << endl;
+	if(argc < 3){
+		cerr << "server port file1 file2 ..." << endl;
 		return -1;
 	}
-	stringstream temp;
-	temp << argv[2];
-	temp >> serverPort;
+	sscanf(argv[1], "%d", &serverPort);
 
-	rangetree tree;
-	
-	loadInput(argv[1]);
-	tree.prepareTree(points);
+	for(int i = 2; i < argc; i++){	
+		cout << i << " " << argc << endl;
+		cout << "processing" << argv[i] << endl;
+		points.clear();
+		cout << "cleared" << endl;
+		loadInput(argv[i]);
+		cout << "Preapring..." << endl;
+		trees[argv[i]].prepareTree(points);
+
+		cout << "Prepared" << endl;
+	}
 	zmq::context_t context (1);
 	zmq::socket_t socket(context, ZMQ_REP);
 	stringstream ss;
@@ -61,7 +67,8 @@ int main(int argc, char** argv){
 
 	unsigned int searchX1, searchX2, searchY1, searchY2;
 	unsigned int startY, yIncrement, yResolution;
-
+	string command;
+	string xBitmapQuery("XBITMAP"), treeExistenceQuery("TREEEXISTS"), pingQuery("PING"), rangeQuery("RANGE");
 	while(true){
 		zmq::message_t request;
 		socket.recv(&request);
@@ -70,25 +77,45 @@ int main(int argc, char** argv){
 		query[request.size()] = 0;
 		
 		stringstream inputTokenizer, outputTokenizer;
+		string targetTree;
 		cout << "query:" << query << endl;
 
 		inputTokenizer << query;
+		delete query;
+		inputTokenizer >> command;
+		if(command.compare(xBitmapQuery) == 0){	
+			inputTokenizer >> targetTree;
+			inputTokenizer >> searchX1 >> searchX2;
+			inputTokenizer >> startY >> yIncrement >> yResolution;
+		
+			if( trees.find(targetTree) != trees.end()){
+				unsigned int yCoord = startY;
+				for(int y = 0; y < yResolution;	y++){
 
-		inputTokenizer >> searchX1 >> searchX2;
-		inputTokenizer >> startY >> yIncrement >> yResolution;
-
-		unsigned int yCoord = startY;
-		for(int y = 0; y < yResolution;	y++){
-			yCoord += yIncrement;
-
-			searchY1 = yCoord;
-			searchY2 = yCoord + yIncrement;
-			outputTokenizer << tree.rangeSearch(1, 0, searchX1, searchX2, searchY1, searchY2);
+					searchY1 = yCoord;
+					searchY2 = yCoord + yIncrement - 1;
+					outputTokenizer << trees[targetTree].rangeSearch(searchX1, searchX2, searchY1, searchY2);
+					yCoord += yIncrement;
+				}
+			}else{
+				outputTokenizer << "UNKNOWN TREE";
+			}
+		}else if(command.compare(rangeQuery) == 0){
+			int x1,x2,y1,y2;
+			inputTokenizer >> targetTree >> x1 >> x2 >> y1 >> y2;
+			outputTokenizer << trees[targetTree].rangeSearch(x1,x2,y1,y2);
+		}else if(command.compare(treeExistenceQuery) == 0){
+			inputTokenizer >> targetTree;
+			outputTokenizer << ( trees.find(targetTree) != trees.end());
+		}else if(command.compare(pingQuery) == 0){
+			outputTokenizer << "PONG";
+		}else{
+			outputTokenizer << "UNKNOWN COMMAND";
 		}
 		cout << "Responding with " << outputTokenizer.str() << endl;
 		string outString = outputTokenizer.str();
-		zmq::message_t reply (outString.length() + 1);
-		strcpy((char*)reply.data(), outString.c_str());
+		zmq::message_t reply (outString.length()); //We purposefully omit the zero
+		memcpy((char*)reply.data(), outString.c_str(), outString.size());
 		socket.send(reply);
 
 		

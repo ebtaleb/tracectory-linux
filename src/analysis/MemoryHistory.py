@@ -72,13 +72,37 @@ class RangeServer:
 	def __init__(self, port):
 		self.socket = context.socket(zmq.REQ)
 		self.socket.connect("tcp://localhost:%d" % port)
-	def query(self, startX, endX, startY, yIncrement, yResolution):
-		queryStr = "%d %d %d %d %d" % (startX, endX, startY, yIncrement, yResolution)
-		print queryStr
-		self.socket.send(queryStr)
+	def ping(self):
+		self.socket.send("PING")
+		poller = zmq.Poller()
+		poller.register(self.socket, zmq.POLLIN)
+		evts = poller.poll(100)
+		if len(evts) == 0: return False
+		return self.socket.recv() == "PONG"
+	def getTree(self, treeName):
+		return RangeTree(self, treeName)
+	def treeExists(self, treeName):
+		if not self.ping(): raise KeyError
+		self.socket.send("TREEEXISTS %s" % treeName)
 		res = self.socket.recv()
+		return int(res)
+
+class RangeTree:
+	def __init__(self, server, name):
+		self.server = server
+		self.treeName = name
+
+		if not self.server.treeExists(name):
+			raise KeyError, "No such tree"
+	def xBitmap(self, startX, endX, startY, yIncrement, yResolution):
+		queryStr = "XBITMAP %s %d %d %d %d %d" % (self.treeName, startX, endX, startY, yIncrement, yResolution)
+		print queryStr
+		self.server.socket.send(queryStr)
+		res = self.server.socket.recv()
 		print "-",res,"-"
 		return [int(x) for x in res if x in ("0","1")]
+
+
 
 class MemoryHistory:
 	def __init__(self, target):
@@ -274,22 +298,29 @@ class MemoryHistory:
 		addresses = self.getAllAddresses()
 		if startTime == endTime: return "[]"
 		timeBucketSize = max((endTime - startTime) / timeResolution, 1)
-		if startAddr in addresses:
-			addresses = addresses[addresses.index(startAddr):]
-		if endAddr in addresses:
-			addresses = addresses[:addresses.index(endAddr)+1]
+		if startAddr in addresses:  addresses = addresses[addresses.index(startAddr):]
+		if endAddr in addresses: addresses = addresses[:addresses.index(endAddr)+1]
 		addrBucketSize = max(len(addresses) / addrResolution, 1)
 
 		curRow = None
 		result = []
 		maxVal = 0
-		perOne = addrResolution
-
-		rServer = RangeServer(5665)
-		wServer = RangeServer(5775)
 
 		perfStartTime = time.time()
+
+		acceleration = True
+		server = RangeServer(5665)
+		try:
+			rServer = server.getTree("%s_reads" % self.target.getName())
+			wServer = server.getTree("%s_writes" % self.target.getName())
+		except KeyError:
+			acceleration = False
+		print "Acceleration:",acceleration
 		#fp = open("tmp.tmp","w")
+		if acceleration:
+			perOne = addrResolution
+		else:
+			perOne = 3	
 		for row in xrange(perOne):
 			y = row + startBlock	
 			if y*addrBucketSize >= len(addresses): continue
@@ -306,31 +337,34 @@ class MemoryHistory:
 			curEnd = curAddr + addrBucketSize
 			nextSkip = 0
 			#fp.write("0 0 0 0\n")
-			readRes = rServer.query(curAddr, curEnd, startTime, timeBucketSize, timeResolution);
-			writeRes = wServer.query(curAddr, curEnd, startTime, timeBucketSize, timeResolution);
-			for x in xrange(timeResolution):
-				curTime = x*timeBucketSize + startTime
-				#fp.write("%X %x %d %d\n" % (curAddr, curEnd, curTime, curTime + timeBucketSize))	
-				if curTime<nextSkip:
-					wasRead = False
-					wasWritten = False
-					skip1 = skip2 = nextSkip
-				else:
-					
-					#wasRead, skip1 = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
-					#wasWritten, skip2 = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
-					#wasRead = rServer.query(curAddr, curEnd, curTime, curTime + timeBucketSize)
-					#wasWritten = wServer.query(curAddr, curEnd, curTime, curTime + timeBucketSize)
-					wasRead = readRes[x]
-					wasWritten = writeRes[x]
-					skip1 = skip2 = -1
-				info = { "wasRead" : wasRead, "wasWritten" : wasWritten, "firstAddr" : curAddr, "firstTime" : curTime,
-					 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
-				if wasRead or wasWritten:
-					nextSkip = -1
-				else:
-					nextSkip = min(skip1, skip2)
-				curRow.append(info)
+			if acceleration:
+				readRes = rServer.xBitmap(curAddr, curEnd - 1, startTime, timeBucketSize, timeResolution);
+				writeRes = wServer.xBitmap(curAddr, curEnd - 1, startTime, timeBucketSize, timeResolution);
+
+				for x in xrange(timeResolution):
+					curTime = x*timeBucketSize + startTime
+					info = { "wasRead" : readRes[x], "wasWritten" : writeRes[x], "firstAddr" : curAddr, "firstTime" : curTime,
+						 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
+					curRow.append(info)
+			else:
+				#No acceleration, have to use slow MongoDB queries
+				for x in xrange(timeResolution):
+					curTime = x*timeBucketSize + startTime
+					if curTime<nextSkip: # Try to still do some optimization by omitting empty regions
+						wasRead = False
+						wasWritten = False
+						skip1 = skip2 = nextSkip
+					else:
+						
+						wasRead, skip1 = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
+						wasWritten, skip2 = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
+					info = { "wasRead" : int(wasRead), "wasWritten" : int(wasWritten), "firstAddr" : curAddr, "firstTime" : curTime,
+						 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
+					if wasRead or wasWritten:
+						nextSkip = -1
+					else:
+						nextSkip = min(skip1, skip2)
+					curRow.append(info)
 
 		if curRow is not None: result.append(curRow)	
 		perfEndTime = time.time()

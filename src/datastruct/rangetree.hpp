@@ -5,11 +5,14 @@ class rangetree{
 public:
 
 	void prepareTree(vector<point> &points);
-	bool rangeSearch(unsigned int curIdx, int curLevel, unsigned int lowerX, unsigned int upperX, unsigned int lowerY, unsigned int upperY);
+	~rangetree();
 
-private:
+	bool rangeSearch(unsigned int lowerX, unsigned int upperX, unsigned int lowerY, unsigned int upperY);
+
+protected:
 	//Mergesort Ys from down to up
 	void mergeYs(int curIdx, unsigned int curLevel);
+	bool rangeSearch_inner(unsigned int curIdx, int curLevel, unsigned int lowerX, unsigned int upperX, unsigned int lowerY, unsigned int upperY);
 	
 	unsigned int n, height;
 

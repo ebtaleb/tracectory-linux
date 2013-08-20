@@ -67,6 +67,7 @@ function zoomGraphInit(){
 				openRWTraceDialog(startAddr, endAddr, startTime, endTime);
 			}
 		);
+		$("#btnRefresh").button().click( function() { zoomGraphInit(); } );
 	}	
 
 }
@@ -145,6 +146,7 @@ function pullZoomGraphData( blockNum, thisRound){
 	if(thisRound<curRound) return;
 	$.getJSON("/memory/zoom", params).done(function(data){
 		if(thisRound<curRound) return;
+		console.log("data is here");
 		for(var addrIdx = 0; addrIdx < data.length; addrIdx++){
 			dataTable[addrIdx + blockNum] = new Array();
 			for(var timeIdx = 0; timeIdx < data[addrIdx].length;timeIdx++){
@@ -162,10 +164,10 @@ function pullZoomGraphData( blockNum, thisRound){
 				var redChar = ( entry.wasWritten  ? "f" : "0");
 				var greenChar = ( entry.wasRead  ? "f" : "0");
 				rect.attr( { "fill" : "#" + redChar + greenChar + "0" } )
-				rect.node.info = entry;
 			}
 
 		}
+		console.log("Loop is ready");
 		//If still some data, pull next set of squares from server recursively
 		if(data.length != 0)
 			pullZoomGraphData(blockNum + data.length, thisRound);

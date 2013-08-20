@@ -45,6 +45,8 @@ class TargetTrace:
 		filename = "db/%s_info.html" % self.saveName
 		if not os.path.exists(filename): return "No info"
 		return open(filename).read()
+	def getName(self):
+		return str(self.saveName)
 
 	def getMemoryHistory(self):
 		return self.memory
