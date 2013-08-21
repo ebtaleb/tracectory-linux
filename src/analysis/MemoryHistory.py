@@ -116,6 +116,10 @@ class MemoryHistory:
 		if len(l) == 0: return None
 		return l[0]['time']
 
+	def previousRead(self, addr, time):
+		l = list(self.db.reads.find( {"addr" : addr , "time" : { "$lt" :  time  }} , {'_id' : 0, 'time' : 1 }).sort("time", direction = -1).limit(1))
+		if len(l) == 0: return None
+		return l[0]['time']
 	def nextRead(self, addr,time):
 		l = list(self.db.reads.find( {"addr" : addr , "time" : { "$gt" :  time  }} , { '_id' : 0, 'time' : 1 }).limit(1))
 		if len(l) == 0: return None
@@ -343,8 +347,10 @@ class MemoryHistory:
 
 				for x in xrange(timeResolution):
 					curTime = x*timeBucketSize + startTime
-					info = { "wasRead" : readRes[x], "wasWritten" : writeRes[x], "firstAddr" : curAddr, "firstTime" : curTime,
+					info = { "r" : readRes[x], "w" : writeRes[x], "firstAddr" : curAddr, "firstTime" : curTime,
 						 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
+					info['t'] = x
+
 					curRow.append(info)
 			else:
 				#No acceleration, have to use slow MongoDB queries
@@ -358,12 +364,14 @@ class MemoryHistory:
 						
 						wasRead, skip1 = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
 						wasWritten, skip2 = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
-					info = { "wasRead" : int(wasRead), "wasWritten" : int(wasWritten), "firstAddr" : curAddr, "firstTime" : curTime,
+					info = { "r" : int(wasRead), "w" : int(wasWritten), "firstAddr" : curAddr, "firstTime" : curTime,
 						 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
 					if wasRead or wasWritten:
 						nextSkip = -1
 					else:
 						nextSkip = min(skip1, skip2)
+
+					info['t'] = x
 					curRow.append(info)
 
 		if curRow is not None: result.append(curRow)	

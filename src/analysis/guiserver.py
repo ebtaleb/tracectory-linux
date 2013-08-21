@@ -94,15 +94,23 @@ class MemoryApi(object):
 			if cycle is None:
 				return json.dumps( { 'status' : 'error' } )
 			listOfReads, listOfWrites = cycle.getMemoryRW()
-			for read in listOfReads:	
+			for read in sorted(list(listOfReads)):	
 				reads.append( { 'addr' : read,
-						'prevWrite' : mh.previousWrite(read, time)
+						 'prevRead' : mh.previousRead(read, time),
+						 'nextRead' : mh.nextRead(read, time),
+
+						'prevWrite' : mh.previousWrite(read, time),
+						 'nextWrite' : mh.nextWrite(read, time)
+	
 					      })
 
-			for write in listOfWrites:
+			for write in sorted(list(listOfWrites)):
 				writes.append( { 'addr' : write,
+						'prevRead' : mh.previousRead(write, time),
 						 'nextRead' : mh.nextRead(write, time),
+						'prevWrite' : mh.previousWrite(write, time),
 						 'nextWrite' : mh.nextWrite(write, time)
+
 						})
 			
 		return json.dumps( { 'status' : 'ok', 'reads' : reads, 'writes' : writes } )

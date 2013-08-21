@@ -15,26 +15,28 @@ bool xSmaller(const point &p1, const point &p2){
 	return p1.y<p2.y;
 }
 
-// "Does arr[0] ... arr[count] contain x such that lower <= x <= upper?"
-bool  bsearch_exists(unsigned int *arr, unsigned int count, unsigned int lower, unsigned int upper){
+int bsearch_getIndex(unsigned int *arr, unsigned int count, int haystack){
 	unsigned int low = 0, high = count - 1;
-/*	for(int i =0; i<count; i++){
-		cout << arr[i] << " ";
-	} */
-	while(low>= 0 && low <= high && high<count){
+	while(low <= high && high<count){
 		unsigned int middle = (high + low)/2;
-		//cout << low << " " << high << " " << middle << endl;
-		if( arr[middle] < lower){
+		if( arr[middle] < haystack){
 			low = middle + 1;
-		} else if(arr[middle] > lower){
+		} else if(arr[middle] > haystack){
 			high = middle - 1;	
 		}else{
-			return true; //exact match with lower bound
+			return middle;
 		}
 	}
-	if(low >= count) low = count - 1;
-	if(low < 0) low = 0;
+	if(low >= count) return -1;
 
+	return low;
+	//smallest x such that arr[x] >= haystack 
+}
+
+// "Does arr[0] ... arr[count] contain x such that lower <= x <= upper?"
+bool bsearch_exists(unsigned int *arr, unsigned int count, unsigned int lower, unsigned int upper){
+	unsigned int low = bsearch_getIndex(arr, count, lower);
+	if(low == -1) return false;
 	//cout << "arr[low]" << arr[low] << endl;
 	return (arr[low]>= lower && arr[low] <= upper);
 }
@@ -125,48 +127,97 @@ bool rangetree::rangeSearch_inner(unsigned int curIdx, int curLevel, unsigned in
 	}
 	return false;
 }
-/*
-int rangetree::nextBelow_inner(unsigned int curIdx, int curLevel, int x, int y){
 
-	// Prefer right until there's nothing smaller
-	if( maxX[curIdx] > x ||	x < minX[curIdx]) return -1;
-	
-	if( maxX[curIdx] == x && minX[curIdx] == x){
-		int levelLen = n / (1 << curLevel );
-		return bsearch_smaller(sortedYs + yPtrs[curIdx], levelLen, y);	
-	}
-
-	if(curIdx < n){
-		int res1 = nextBelow_inner(curIdx * 2 + 1, curLevel, x, y); // right
-		if(res1 >= 0) return res1;
-
-		int res2 = nextBelow_inner(curIdx * 2, curLevel, x, y); // left
-		if(res2 >= 0) return res2;
-	}
-	
+bool rangetree::nextY(unsigned int x, unsigned int y, result_t &result){
+	return nextOver_inner(1, 0, x, y, result);
+}
+bool rangetree::prevY(unsigned int x, unsigned int y, result_t &result){
+	return nextBelow_inner(1, 0, x, y, result);
 }
 
-int rangetree::nextOver_inner(unsigned int curIdx, int curLevel, int x, int y){
+bool rangetree::nextBelow_inner(unsigned int curIdx, int curLevel, unsigned int x, unsigned int y, result_t &result){
 
-	// Prefer left until there's nothing smaller
-	if( maxX[curIdx] > x ||	x < minX[curIdx]) return -1;
-	
+	#ifdef DEBUG
+	cerr << minX[curIdx] << " " << maxX[curIdx] << endl;	
+	#endif
+	// Prefer right until there's nothing smaller
+	if( ! (minX[curIdx] <= x && x <= maxX[curIdx] )) return false;
 	if( maxX[curIdx] == x && minX[curIdx] == x){
 		int levelLen = n / (1 << curLevel );
-		return bsearch_larger(sortedYs + yPtrs[curIdx], levelLen, y);	
+
+/*		for(int i = 0; i < levelLen;i++)
+			cerr << sortedYs[yPtrs[curIdx] + i] << " " ;
+		cerr << endl;*/
+
+		int targetElement  = bsearch_getIndex(sortedYs + yPtrs[curIdx], levelLen, y);		
+
+		if(targetElement == -1){ // all are smaller than the target value, pick largest
+			//cerr << "-1" << endl;
+			result = sortedYs[yPtrs[curIdx] + levelLen - 1];
+			//cerr << "returning " << result << endl;
+			return true;
+		}
+		if(targetElement > 0){
+
+			//cerr << ">0 " << targetElement << "(len " << levelLen << endl;
+			//cerr << "targetelement = " << sortedYs[yPtrs[curIdx] + targetElement] << endl;
+			result = sortedYs[yPtrs[curIdx] + targetElement - 1];
+			//cerr << "returning " << result << endl;
+			return true;
+		}
+		return false;
+	}
+
+	if(curIdx <= n){
+		result_t val1;
+		bool res1 = nextBelow_inner(curIdx * 2 + 1, curLevel + 1, x, y, result); // right
+		if(res1) return true;
+		val1 = result;
+
+		bool res2 = nextBelow_inner(curIdx * 2, curLevel + 1, x, y, result); // left
+		if(res2) return true;
+/*		if( (!res1) && (!res2))
+			return false;
+		if(res1 && res2){
+			result =(val1 > result) ? val1 :result;
+			return true;
+		}
+		return true;*/
+	}
+	return false;	
+}
+
+bool rangetree::nextOver_inner(unsigned int curIdx, int curLevel, unsigned int x, unsigned int y, result_t &result){
+	// Prefer left until there's nothing smaller
+
+	#ifdef DEBUG
+	cerr << minX[curIdx] << " " << maxX[curIdx] << endl;	
+	#endif 
+
+	if( ! (minX[curIdx] <= x && x <= maxX[curIdx] )) return false;
+	if( maxX[curIdx] == x && minX[curIdx] == x){
+		int levelLen = n / (1 << curLevel );
+		int biggerElement = bsearch_getIndex(sortedYs+yPtrs[curIdx], levelLen, y+1);		
+		if(biggerElement != -1){
+			result = sortedYs[yPtrs[curIdx] + biggerElement];
+			return true;
+		}else{
+			return false;
+		}
 	}
 
 	if(curIdx < n){
 
-		int res2 = nextBelow_inner(curIdx * 2, curLevel, x, y); //left
-		if(res2 >= 0) return res2;
+		if(nextOver_inner(curIdx * 2, curLevel + 1, x, y, result))
+			return true;
 
-		int res1 = nextBelow_inner(curIdx * 2 + 1, curLevel, x, y); //right
-		if(res1 >= 0) return res1;
+		if(nextOver_inner(curIdx * 2 + 1, curLevel + 1, x, y, result))
+			return true;
 
 	}
+	return false;
 	
-} */
+}
 
 //Mergesort Ys from down to up
 void rangetree::mergeYs(int curIdx, unsigned int curLevel){

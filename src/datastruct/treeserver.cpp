@@ -46,15 +46,9 @@ int main(int argc, char** argv){
 	sscanf(argv[1], "%d", &serverPort);
 
 	for(int i = 2; i < argc; i++){	
-		cout << i << " " << argc << endl;
-		cout << "processing" << argv[i] << endl;
 		points.clear();
-		cout << "cleared" << endl;
 		loadInput(argv[i]);
-		cout << "Preapring..." << endl;
 		trees[argv[i]].prepareTree(points);
-
-		cout << "Prepared" << endl;
 	}
 	zmq::context_t context (1);
 	zmq::socket_t socket(context, ZMQ_REP);
@@ -67,8 +61,11 @@ int main(int argc, char** argv){
 
 	unsigned int searchX1, searchX2, searchY1, searchY2;
 	unsigned int startY, yIncrement, yResolution;
+
+	int x1,x2,y1,y2;
 	string command;
 	string xBitmapQuery("XBITMAP"), treeExistenceQuery("TREEEXISTS"), pingQuery("PING"), rangeQuery("RANGE");
+	string nextYQuery("NEXTY"), prevYQuery("PREVY");
 	while(true){
 		zmq::message_t request;
 		socket.recv(&request);
@@ -101,12 +98,22 @@ int main(int argc, char** argv){
 				outputTokenizer << "UNKNOWN TREE";
 			}
 		}else if(command.compare(rangeQuery) == 0){
-			int x1,x2,y1,y2;
 			inputTokenizer >> targetTree >> x1 >> x2 >> y1 >> y2;
 			outputTokenizer << trees[targetTree].rangeSearch(x1,x2,y1,y2);
 		}else if(command.compare(treeExistenceQuery) == 0){
 			inputTokenizer >> targetTree;
 			outputTokenizer << ( trees.find(targetTree) != trees.end());
+		}else if(command.compare(nextYQuery) == 0){
+			result_t result=0;
+			inputTokenizer >> targetTree >> x1 >> y1;
+			outputTokenizer << trees[targetTree].nextY(x1,y1,result) << " ";
+			outputTokenizer << result;
+		}else if(command.compare(prevYQuery) == 0){
+			result_t result = 0;
+			inputTokenizer >> targetTree >> x1 >> y1;
+			outputTokenizer << trees[targetTree].prevY(x1,y1,result) << " ";
+			outputTokenizer << result;
+
 		}else if(command.compare(pingQuery) == 0){
 			outputTokenizer << "PONG";
 		}else{

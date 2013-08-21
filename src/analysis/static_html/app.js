@@ -41,6 +41,7 @@ function showView(newId){
 	oldView = newId;
 }
 
+
 var lastMemAddr = 0;
 function refreshMemoryDump(address, time){
 	var params = {"address" : address, 'time' : time};	
@@ -98,9 +99,52 @@ function createButton(uiClass, time){
 
 }
 
+function jumpGenerator(targetTime){
+	return function(){ jumpToTime(targetTime); };
+}
+
+function createMemoryLink(data, color){
+	// Really hairy, had surprising problems with the correct ordering of the butotns :/
+	var textSpan = $("<span> </span>");
+	textSpan.attr("id",i);
+	textSpan.html( formatDword(data['addr'])  + "&nbsp;");
+	textSpan.css( {'color' : color , 'float' : 'left'} )
+
+	var prevButtons = $("<span></span>");
+	var afterButtons = $("<span></span>");
+	prevButtons.attr("id", "prevuttons" + i);
+	var prevWriteButton = createButton('ui-icon-circle-arrow-w', 123);
+	var prevReadButton  = createButton('ui-icon-arrowthick-1-w', 123);
+	prevWriteButton.click( jumpGenerator(data.prevWrite));
+	prevReadButton.click( jumpGenerator(data.prevRead));
+	prevReadButton.attr('title', "Jump to previous read");
+	prevWriteButton.attr('title', "Jump to previous write");
+	prevButtons.append( prevWriteButton);
+	prevButtons.append(prevReadButton) ;	
+
+	afterButtons.attr("id","after"+i);
+
+	var nextWriteButton = createButton('ui-icon-circle-arrow-e', 123);
+	var nextReadButton = createButton('ui-icon-arrowthick-1-e', 123);
+	nextReadButton.click( jumpGenerator(data.nextRead));
+	nextReadButton.attr('title', "Jump to next read");
+	nextWriteButton.click( jumpGenerator(data.nextWrite));
+	nextWriteButton.attr('title', "Jump to next write");
+	afterButtons.append( nextReadButton);
+	afterButtons.append( nextWriteButton);
+
+	var span=$("<span></span>");
+	span.append(prevButtons);
+	span.append(textSpan);
+	span.append(afterButtons);
+	return span;
+	
+}
+
 function refreshCPUView(time){
 	$.getJSON("/cpu/getInstructions", {'time' : time}).done(
 		function(data){
+			console.log("ffdfd");
 			var output = '';
 			var instrs = data['disasm'];
 			for(var i = 0; i < instrs.length;i++){
@@ -109,7 +153,7 @@ function refreshCPUView(time){
 				//output += "<br/>";
 				output += "\n";
 			}	
-			$("#instrContents").html(output);
+			$("#instrContents").text(output);
 			$("#cpuState").text( data['dump']);
 			var curInstruction = instrs[instrs.length - 1];
 			$("#curExec").html(formatDword(curInstruction[1]) + " " + htmlEntities(curInstruction[2]));
@@ -127,17 +171,9 @@ function refreshCPUView(time){
 			if(data['reads'].length != 0){
 				readHtml = "Read:<ul>\n";
 				for(i = 0; i < data['reads'].length; i++){
-					var span = $("<span> </span>");
-					span.attr("id",i);
-					span.html( formatDword(data['reads'][i]['addr'])  + "&nbsp;");
-					span.css( {'color' : '#080' , 'float' : 'left'} )
-					span.append( createButton('ui-icon-circle-arrow-w', 123));
-					span.append( createButton('ui-icon-circle-arrow-e', 123));
-					span.append( createButton('ui-icon-arrowthick-1-w', 123));
-					span.append( createButton('ui-icon-arrowthick-1-e', 123));
-					buttons.append(span);
-					span = null;
-					prevWrite = data['reads'][i]['prevWrite'];
+					var entry = data['reads'][i];
+					buttons.append(createMemoryLink(entry, "#080"));
+					prevWrite = entry['prevWrite'];
 					readHtml += "<li class=\"readMemLink\">";
 					readHtml += formatDword(data['reads'][i]['addr']);	
 					if(prevWrite != null){
@@ -153,7 +189,8 @@ function refreshCPUView(time){
 			if(data['writes'].length != 0){
 				writeHtml = "Written:<ul>\n";
 				for(i = 0; i < data['writes'].length; i++){
-
+					var entry = data['writes'][i];
+					buttons.append(createMemoryLink(entry, "#800"));
 					nextRead = data['writes'][i]['nextRead'];
 					writeHtml += "<li class=\"writeMemLink\">";
 					writeHtml += formatDword(data['writes'][i]['addr']);	
@@ -250,6 +287,10 @@ function menuSelect(event, ui){
 
 function jumpToTime(newTime){
 	$("#timeslider").slider("value",newTime);
+}
+
+function getTimeSliderValue(){
+	return $("#timeslider").slider("value");
 }
 
 function onClickJump(){

@@ -23,6 +23,7 @@ function zoomOut(){
 	zoomGraphInit();
 }
 
+
 function zoomGraphInit(){
 	var thisRound = ++curRound;
 	width = 710; height = 520;
@@ -67,7 +68,13 @@ function zoomGraphInit(){
 				openRWTraceDialog(startAddr, endAddr, startTime, endTime);
 			}
 		);
-		$("#btnRefresh").button().click( function() { zoomGraphInit(); } );
+		$("#btnRefresh").button( {text: false, icons : {primary : "ui-icon-arrowrefresh-1-e"}}).click( function() { zoomGraphInit(); } );
+		$("#btnTimeAlignTop").button( {text: false, icons : {primary : "ui-icon-arrowthickstop-1-n"}}).click(
+			function() { startTime = getTimeSliderValue(); zoomGraphInit(); } );
+		$("#btnTimeAlignBottom").button( {text: false, icons : {primary : "ui-icon-arrowthickstop-1-s"}}).click(
+			function() { endTime = getTimeSliderValue(); zoomGraphInit(); } );
+
+
 	}	
 
 }
@@ -152,17 +159,17 @@ function pullZoomGraphData( blockNum, thisRound){
 			for(var timeIdx = 0; timeIdx < data[addrIdx].length;timeIdx++){
 				var entry = data[addrIdx][timeIdx];
 				dataTable[addrIdx + blockNum][timeIdx] = entry;
-				if( (!entry.wasRead) && !(entry.wasWritten)) {
+				if( (!entry.r) && !(entry.w)) {
 					dataTable[addrIdx + blockNum][timeIdx].empty = true;
 					continue;
 				}
 
 				if(thisRound<curRound) return;
 				var xPosition = (addrIdx + blockNum) * perX;
-				var yPosition = timeIdx * perY;
+				var yPosition = entry.t * perY;
 				var rect = mainPaper.rect(xPosition, yPosition, perX, perY);
-				var redChar = ( entry.wasWritten  ? "f" : "0");
-				var greenChar = ( entry.wasRead  ? "f" : "0");
+				var redChar = ( entry.w  ? "f" : "0");
+				var greenChar = ( entry.r  ? "f" : "0");
 				rect.attr( { "fill" : "#" + redChar + greenChar + "0" } )
 			}
 
