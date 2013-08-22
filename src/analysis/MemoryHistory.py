@@ -3,7 +3,7 @@ from taint import *
 from collections import defaultdict
 import json
 import time
-
+import math
 class MemoryAccess:
 	"""MemoryAccess objects represent a memory access (read/write) at a certain
 	   point in time. Instance methods can ge used to retrieve the address and 
@@ -292,23 +292,20 @@ class MemoryHistory:
 
 
 	def getOverview(self, timeResolution = 30, addrResolution=30, startBlock = 0, startTime = None, endTime = None, startAddr = 0, endAddr = None):	
-		print "timeResolution = %d, addrResolution = %d" % (timeResolution, addrResolution)
-
 		if endTime is None: endTime = self.target.getMaxTime()
 		if startTime is None: startTime = 0
 		if startAddr is None: startAddr = 0
-		if endAddr is None: endAddr=999
+		if endAddr is None: endAddr=999999999999999
 
+		if endTime > self.target.getMaxTime(): endTime = self.target.getMaxTime()
+		if startTime == endTime or startTime>endTime or endTime>self.target.getMaxTime(): return None
+		timeBucketSize = int(max(math.ceil((1.0 * endTime - startTime) / timeResolution), 1))
+		
+		#XXX: O(n) scan across all memory addresses, should cut this down
 		addresses = self.getAllAddresses()
-		if startTime == endTime: return "[]"
-		timeBucketSize = max((endTime - startTime) / timeResolution, 1)
 		if startAddr in addresses:  addresses = addresses[addresses.index(startAddr):]
 		if endAddr in addresses: addresses = addresses[:addresses.index(endAddr)+1]
-		addrBucketSize = max(len(addresses) / addrResolution, 1)
-
-		curRow = None
-		result = []
-		maxVal = 0
+		addrBucketSize = int(max( math.ceil((1.0*len(addresses)) / addrResolution), 1))
 
 		perfStartTime = time.time()
 
@@ -320,11 +317,11 @@ class MemoryHistory:
 		except KeyError:
 			acceleration = False
 		print "Acceleration:",acceleration
-		#fp = open("tmp.tmp","w")
-		if acceleration:
-			perOne = addrResolution
-		else:
-			perOne = 3	
+		perOne = addrResolution
+		if not acceleration: perOne = 3	
+		result = { 'startAddrs' : [], 'endAddrs' :  [], 'startTimes' : [x*timeBucketSize + startTime for x in xrange(timeResolution)]}
+		result['endTimes'] =   [x + timeBucketSize - 1 for x in result['startTimes']]
+		resultRows = []
 		for row in xrange(perOne):
 			y = row + startBlock	
 			if y*addrBucketSize >= len(addresses): continue
@@ -334,24 +331,16 @@ class MemoryHistory:
 				curEnd = addresses[(y+1) * addrBucketSize]
 
 			curAddr = addresses[y*addrBucketSize]
-			if curRow is not None: result.append(curRow)
 			curRow = []
-			print "%08X-%08X" %(curAddr, curEnd)
+			result['startAddrs'].append(curAddr)
+			result['endAddrs'].append(curEnd - 1)
 
 			curEnd = curAddr + addrBucketSize
 			nextSkip = 0
-			#fp.write("0 0 0 0\n")
 			if acceleration:
 				readRes = rServer.xBitmap(curAddr, curEnd - 1, startTime, timeBucketSize, timeResolution);
 				writeRes = wServer.xBitmap(curAddr, curEnd - 1, startTime, timeBucketSize, timeResolution);
-
-				for x in xrange(timeResolution):
-					curTime = x*timeBucketSize + startTime
-					info = { "r" : readRes[x], "w" : writeRes[x], "firstAddr" : curAddr, "firstTime" : curTime,
-						 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
-					info['t'] = x
-
-					curRow.append(info)
+				for x in xrange(timeResolution): curRow.append(writeRes[x]*2 + readRes[x]) # 3=rw 2=w 1=r 0=-
 			else:
 				#No acceleration, have to use slow MongoDB queries
 				for x in xrange(timeResolution):
@@ -361,23 +350,18 @@ class MemoryHistory:
 						wasWritten = False
 						skip1 = skip2 = nextSkip
 					else:
-						
 						wasRead, skip1 = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
 						wasWritten, skip2 = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
-					info = { "r" : int(wasRead), "w" : int(wasWritten), "firstAddr" : curAddr, "firstTime" : curTime,
-						 "lastAddr" : curEnd, "lastTime" : curTime + timeBucketSize }
-					if wasRead or wasWritten:
-						nextSkip = -1
-					else:
-						nextSkip = min(skip1, skip2)
+					if wasRead or wasWritten:  nextSkip = -1
+					else: nextSkip = min(skip1, skip2)
 
-					info['t'] = x
-					curRow.append(info)
+					curRow.append( int(wasWritten)*2 + int(wasRead))
+			resultRows.append(''.join([str(x) for x in curRow] ))
 
-		if curRow is not None: result.append(curRow)	
+		result['bitmap'] = resultRows
 		perfEndTime = time.time()
 
-		print (perfEndTime - perfStartTime),"seconds"
+		print (perfEndTime - perfStartTime),"seconds", len(resultRows), "rows"
 
-		return json.dumps(result, indent=4)
+		return result
 	

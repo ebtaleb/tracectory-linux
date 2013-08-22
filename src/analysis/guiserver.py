@@ -116,25 +116,19 @@ class MemoryApi(object):
 		return json.dumps( { 'status' : 'ok', 'reads' : reads, 'writes' : writes } )
 
 	@cherrypy.expose
-	def zoom(self, timeResolution, addrResolution, startBlock, startTime, endTime, startAddr, endAddr):
+	def zoom(self, startBlock, startTime, endTime, startAddr, endAddr):
 		target = getTrace()
-		timeResolution = int(timeResolution)
-		addrResolution = int(addrResolution)
-		startBlock = int(startBlock)
-
-		startTime = int(startTime)
-		endTime   = int(endTime)
-		startAddr = int(startAddr)
-		endAddr = int(endAddr)
+		startBlock, startTime, endTime = int(startBlock), int(startTime),  int(endTime)
+		startAddr, endAddr = int(startAddr), int(endAddr)
 		if startTime == -1: startTime = None
 		if endTime == -1: endTime = None
 		if startAddr == -1: startAddr = None
 		if endAddr == -1: endAddr = None
 		with target.getLock():
 			mh = target.getMemoryHistory()
-			res = mh.getOverview(timeResolution = timeResolution, addrResolution = addrResolution, startBlock = startBlock,
+			res = mh.getOverview(timeResolution = 100, addrResolution = 140, startBlock = startBlock,
 				startTime = startTime, endTime = endTime, startAddr = startAddr, endAddr = endAddr)
-			return res
+			return json.dumps(res)
 
 	@cherrypy.expose
 	def rwTrace(self, address, bytes, time, cycles, compress):

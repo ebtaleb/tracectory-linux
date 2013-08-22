@@ -26,7 +26,7 @@ function zoomOut(){
 
 function zoomGraphInit(){
 	var thisRound = ++curRound;
-	width = 710; height = 520;
+	width = 140*5 + 10; height = 520;
 	if(mainPaper == null)
 		mainPaper = new Raphael(document.getElementById("zoomCanvas"), width, height);
 	dataTable = new Array();
@@ -37,7 +37,6 @@ function zoomGraphInit(){
 	backgroundRect = mainPaper.rect(0,0,width, height);
 	backgroundRect.mousedown( function(event) {
 		selecting = true;
-		console.log(event);
 		selectionRect.attr( { "x" : toScreenX(event.pageX) , "y" : toScreenY(event.pageY)} );
 	});
 	backgroundRect.mousemove( onHoverBlock );
@@ -143,7 +142,7 @@ var selecting = false;
 
 //This fetches a block of data from server and renders it into the Raphael canvas
 function pullZoomGraphData( blockNum, thisRound){
-	var params = { 'timeResolution' : 100, 'addrResolution' : 140, 'startBlock' : blockNum, 'startTime' : startTime, 'endTime' : endTime, 'startAddr' : startAddr, 'endAddr' : endAddr};
+	var params = { 'startBlock' : blockNum, 'startTime' : startTime, 'endTime' : endTime, 'startAddr' : startAddr, 'endAddr' : endAddr};
 	perX = 5;
 	perY = 5;
 	selectionRect.toFront();
@@ -153,11 +152,17 @@ function pullZoomGraphData( blockNum, thisRound){
 	if(thisRound<curRound) return;
 	$.getJSON("/memory/zoom", params).done(function(data){
 		if(thisRound<curRound) return;
-		console.log("data is here");
-		for(var addrIdx = 0; addrIdx < data.length; addrIdx++){
+		console.log(data['bitmap'].length);
+		for(var addrIdx = 0; addrIdx < data['bitmap'].length; addrIdx++){
 			dataTable[addrIdx + blockNum] = new Array();
-			for(var timeIdx = 0; timeIdx < data[addrIdx].length;timeIdx++){
-				var entry = data[addrIdx][timeIdx];
+			for(var timeIdx = 0; timeIdx < data['bitmap'][addrIdx].length;timeIdx++){
+				var entry = {};
+				entry.firstTime = data['startTimes'][timeIdx];
+				entry.lastTime = data['endTimes'][timeIdx];
+				entry.firstAddr = data['startAddrs'][addrIdx];
+				entry.lastAddr = data['endAddrs'][addrIdx];
+				entry.w = data['bitmap'][addrIdx][timeIdx] & 2;
+				entry.r = data['bitmap'][addrIdx][timeIdx] & 1;
 				dataTable[addrIdx + blockNum][timeIdx] = entry;
 				if( (!entry.r) && !(entry.w)) {
 					dataTable[addrIdx + blockNum][timeIdx].empty = true;
@@ -166,7 +171,7 @@ function pullZoomGraphData( blockNum, thisRound){
 
 				if(thisRound<curRound) return;
 				var xPosition = (addrIdx + blockNum) * perX;
-				var yPosition = entry.t * perY;
+				var yPosition = (timeIdx) * perY;
 				var rect = mainPaper.rect(xPosition, yPosition, perX, perY);
 				var redChar = ( entry.w  ? "f" : "0");
 				var greenChar = ( entry.r  ? "f" : "0");
@@ -176,8 +181,8 @@ function pullZoomGraphData( blockNum, thisRound){
 		}
 		console.log("Loop is ready");
 		//If still some data, pull next set of squares from server recursively
-		if(data.length != 0)
-			pullZoomGraphData(blockNum + data.length, thisRound);
+		if(data['bitmap'].length != 0)
+			pullZoomGraphData(blockNum + data['bitmap'].length, thisRound);
 	
 	});
 

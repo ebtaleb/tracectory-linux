@@ -144,7 +144,6 @@ function createMemoryLink(data, color){
 function refreshCPUView(time){
 	$.getJSON("/cpu/getInstructions", {'time' : time}).done(
 		function(data){
-			console.log("ffdfd");
 			var output = '';
 			var instrs = data['disasm'];
 			for(var i = 0; i < instrs.length;i++){
