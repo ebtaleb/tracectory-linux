@@ -110,8 +110,8 @@ function toAddr(x, y){
 	
 }
 
-function toScreenX(x){ 	return x - $(document).scrollLeft() - $("#zoomCanvas").offset().left; }
-function toScreenY(y){ 	return y - $(document).scrollTop() - $("#zoomCanvas").offset().top; }
+function toScreenY(y){ 	return y - $("#zoomCanvas").offset().top; }
+function toScreenX(x){	return x - $("#zoomCanvas").offset().left; }
 
 function performSelection(){
 	console.log("performSelection");
