@@ -129,6 +129,13 @@ class MemoryApi(object):
 			res = mh.getOverview(timeResolution = 100, addrResolution = 140, startBlock = startBlock,
 				startTime = startTime, endTime = endTime, startAddr = startAddr, endAddr = endAddr)
 			return json.dumps(res)
+	@cherrypy.expose
+	def test(self):
+		target = getTrace()
+		with target.getLock():
+
+			mh = target.getMemoryHistory()
+			return mh.testAcceleration()
 
 	@cherrypy.expose
 	def rwTrace(self, address, bytes, time, cycles, compress):

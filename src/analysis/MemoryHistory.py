@@ -261,13 +261,12 @@ class MemoryHistory:
 
 	def checkForRange(self, table, startAddr, endAddr, startTime, endTime):
 		#Returns (wasFound, allowedSkip)
-		sample = table.find_one({'addr' : {"$gte" : startAddr, "$lt" : endAddr }, 'time' : {"$gte" : startTime}}, 
-			{'_id' : 0, "time" : 1})
-		if sample is None:
-			return (False, 9999999999999999)
-		if sample['time'] < endTime:
-			return True, -1
-		return False, endTime
+		sample = table.find({'addr' : {"$gte" : startAddr, "$lt" : endAddr }, 'time' : {"$gte" : startTime, "$lt" : endTime}}, 
+			{'_id' : 0, "time" : 1}).limit(1)
+		sample = list(sample)
+		if len(sample) == 0:
+			return False
+		return True
 
 	def getAllAddresses(self):
 		#TODO: Move this into preprocessing
@@ -289,6 +288,39 @@ class MemoryHistory:
 
 		self.db.meta.update( {}, { "$set" : { "memAddrs" : addresses }})
 		return addresses
+	def testAcceleration(self):
+		addresses = self.getAllAddresses()
+		addrResolution = 140
+		addrBucketSize = int(max( math.ceil((1.0*len(addresses)) / addrResolution), 1))
+
+		endTime = self.target.getMaxTime()
+		startTime = 0
+		timeResolution = 100
+		timeBucketSize = int(max(math.ceil((1.0 * endTime - startTime) / timeResolution), 1))
+
+
+		server = RangeServer(5665)
+		rServer = server.getTree("%s_reads" % self.target.getName())
+
+		for addrIdx in xrange(0, len(addresses ) -2, addrBucketSize):
+			curAddr = addresses[addrIdx]
+			if addrIdx+addrBucketSize >= len(addresses): 
+				return "exit without errors"
+			curEnd = addresses[addrIdx+addrBucketSize]
+			curRow = []
+			
+			readRes = rServer.xBitmap(curAddr, curEnd - 1, startTime, timeBucketSize, timeResolution);
+			for x in xrange(timeResolution):
+					curTime = x*timeBucketSize + startTime
+					wasRead = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
+					if not ( int(wasRead ) == (readRes[x])):
+						print curAddr,curEnd,curTime, curTime + timeBucketSize
+						print "MongoDB:",wasRead
+						print "treeserver:",readRes[x]
+						raise ValueError
+		return "OK"
+
+			
 
 
 	def getOverview(self, timeResolution = 30, addrResolution=30, startBlock = 0, startTime = None, endTime = None, startAddr = 0, endAddr = None):	
@@ -318,7 +350,7 @@ class MemoryHistory:
 			acceleration = False
 		print "Acceleration:",acceleration
 		perOne = addrResolution
-		if not acceleration: perOne = 3	
+		if not acceleration: perOne = 5	
 		result = { 'startAddrs' : [], 'endAddrs' :  [], 'startTimes' : [x*timeBucketSize + startTime for x in xrange(timeResolution)]}
 		result['endTimes'] =   [x + timeBucketSize - 1 for x in result['startTimes']]
 		resultRows = []
@@ -342,18 +374,11 @@ class MemoryHistory:
 				writeRes = wServer.xBitmap(curAddr, curEnd - 1, startTime, timeBucketSize, timeResolution);
 				for x in xrange(timeResolution): curRow.append(writeRes[x]*2 + readRes[x]) # 3=rw 2=w 1=r 0=-
 			else:
-				#No acceleration, have to use slow MongoDB queries
+				#No acceleration
 				for x in xrange(timeResolution):
 					curTime = x*timeBucketSize + startTime
-					if curTime<nextSkip: # Try to still do some optimization by omitting empty regions
-						wasRead = False
-						wasWritten = False
-						skip1 = skip2 = nextSkip
-					else:
-						wasRead, skip1 = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
-						wasWritten, skip2 = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
-					if wasRead or wasWritten:  nextSkip = -1
-					else: nextSkip = min(skip1, skip2)
+					wasRead = self.checkForRange(self.db.reads, curAddr, curEnd, curTime, curTime + timeBucketSize)
+					wasWritten = self.checkForRange(self.db.writes, curAddr, curEnd, curTime, curTime + timeBucketSize)
 
 					curRow.append( int(wasWritten)*2 + int(wasRead))
 			resultRows.append(''.join([str(x) for x in curRow] ))

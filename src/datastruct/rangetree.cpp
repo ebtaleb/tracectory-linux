@@ -8,7 +8,7 @@ using namespace std;
 
 #include "rangetree.hpp"
 
-#define INFINITY 999999999 // XXX: What about 64-bit addresses, they might go over this
+#define INFINITY 0xfffffff0 // XXX: What about 64-bit addresses, they might go over this
 
 bool xSmaller(const point &p1, const point &p2){
 	if(p1.x != p2.x) return (p1.x<p2.x);
@@ -84,7 +84,7 @@ void rangetree::prepareTree(vector<point> &points){
 	}
 
 	//Prepare the x-wise BST
-	for(int i = n; i > 0; i--){
+	for(int i = n - 1; i > 0; i--){
 		minX[i] = minX[2 * i];
 		maxX[i] = maxX[2 * i + 1];
 	}
@@ -111,10 +111,14 @@ bool rangetree::rangeSearch_inner(unsigned int curIdx, int curLevel, unsigned in
 		return false;
 
 	if( lowerX <= minX[curIdx]  && maxX[curIdx] <= upperX){
-		//cerr << "Contains fully" << minX[curIdx] << "- " << maxX[curIdx] << " curIdx: " << curIdx << endl;
+
 		int levelLen = n / (1 << curLevel );
+		/*cerr << "Contains fully" << minX[curIdx] << "- " << maxX[curIdx] << " curIdx: " << curIdx << endl;
+	}*/
+	
+
 		bool res = bsearch_exists(sortedYs + yPtrs[curIdx], levelLen, lowerY, upperY); 
-		//cerr << "bsearch yields" << res << endl;
+ //		cerr << "bsearch yields" << res << endl;
 		return res;
 
 	}

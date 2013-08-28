@@ -4,7 +4,7 @@ import os, sys
 
 if len(sys.argv)<3:
 	print "mongoexpory.py dbname collectionname"
-	printg "e.g. mongoexport.py t206 reads"
+	print "e.g. mongoexport.py t206 reads"
 	sys.exit(1)
 
 client = MongoClient()
