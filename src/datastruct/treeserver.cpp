@@ -87,8 +87,7 @@ int main(int argc, char** argv){
 		
 			if( trees.find(targetTree) != trees.end()){
 				unsigned int yCoord = startY;
-				for(int y = 0; y < yResolution;	y++){
-
+				for(uint y = 0; y < yResolution; y++){
 					searchY1 = yCoord;
 					searchY2 = yCoord + yIncrement - 1;
 					outputTokenizer << trees[targetTree].rangeSearch(searchX1, searchX2, searchY1, searchY2);

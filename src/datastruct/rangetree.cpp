@@ -15,7 +15,7 @@ bool xSmaller(const point &p1, const point &p2){
 	return p1.y<p2.y;
 }
 
-int bsearch_getIndex(unsigned int *arr, unsigned int count, int haystack){
+int bsearch_getIndex(unsigned int *arr, unsigned int count, result_t haystack){
 	unsigned int low = 0, high = count - 1;
 	while(low <= high && high<count){
 		unsigned int middle = (high + low)/2;
@@ -35,7 +35,7 @@ int bsearch_getIndex(unsigned int *arr, unsigned int count, int haystack){
 
 // "Does arr[0] ... arr[count] contain x such that lower <= x <= upper?"
 bool bsearch_exists(unsigned int *arr, unsigned int count, unsigned int lower, unsigned int upper){
-	unsigned int low = bsearch_getIndex(arr, count, lower);
+	int low = bsearch_getIndex(arr, count, lower);
 	if(low == -1) return false;
 	//cout << "arr[low]" << arr[low] << endl;
 	return (arr[low]>= lower && arr[low] <= upper);
@@ -45,7 +45,8 @@ void rangetree::prepareTree(vector<point> &points){
 	cerr << "Inserting " << points.size() << " entries" << endl;
 	sort(points.begin(), points.end(), xSmaller);
 	height = 1;
-	while( (1<<height) <points.size()) height++;
+	while( (unsigned int)((1<<height)) <points.size()) 
+		height++;
 	n = 1<< height;	
 	height++;
 
@@ -173,20 +174,11 @@ bool rangetree::nextBelow_inner(unsigned int curIdx, int curLevel, unsigned int 
 	}
 
 	if(curIdx <= n){
-		result_t val1;
 		bool res1 = nextBelow_inner(curIdx * 2 + 1, curLevel + 1, x, y, result); // right
 		if(res1) return true;
-		val1 = result;
 
 		bool res2 = nextBelow_inner(curIdx * 2, curLevel + 1, x, y, result); // left
 		if(res2) return true;
-/*		if( (!res1) && (!res2))
-			return false;
-		if(res1 && res2){
-			result =(val1 > result) ? val1 :result;
-			return true;
-		}
-		return true;*/
 	}
 	return false;	
 }
