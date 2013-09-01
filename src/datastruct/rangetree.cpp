@@ -24,6 +24,10 @@ int bsearch_getIndex(unsigned int *arr, unsigned int count, result_t haystack){
 		} else if(arr[middle] > haystack){
 			high = middle - 1;	
 		}else{
+			if( middle > 0 && arr[middle - 1] == arr[middle]){
+				high = middle - 1;	
+				continue;
+			}
 			return middle;
 		}
 	}

@@ -23,6 +23,7 @@ while True:
 		checkX = random.randint(0x00bc0000,0x00bd0000)	
 	else:
 		checkX = random.randint(0x0012ff00,0x00130100)	
+	#checkX = 1244736 
 	l = []
 	lastVal = 0
 	while True:
