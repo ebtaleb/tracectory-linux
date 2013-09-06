@@ -128,8 +128,8 @@
 			<div id="zoomCanvas"> </div>
 		</div>
 		<div id="memInfo">
-			<div><span id="dbIcon"></span><span id="lblAddr" class="monospace">Address</div>
-			<div><span id="clockIcon"></span><span id="lblTime" class="monospace">Time</div>
+			<div><span id="dbIcon"></span><span id="lblAddr" class="monospace">Address</span>
+			<div><span id="clockIcon"></span><span id="lblTime" class="monospace">Time</span>
 			<div style="width: 100%">
 			Select regions to zoom in. Click on a single square to see (the beginning of) its
 			contents at the time of access.
@@ -140,9 +140,9 @@
 				<div style="clear: both"></div>
 				<div class="legendColor green"></div>&nbsp;Read
 				<div style="clear: both"></div>
-				<div class="legendColor yellow"></div>&nbsp;Read&written
+				<div class="legendColor yellow"></div>&nbsp;Read &amp; written
 			</div>
-			<img src="axes.png" />
+			<img src="axes.png" alt="down = forward in time, right = larger memory addresses"/>
 			
 		</div>
 	</div>
@@ -187,7 +187,7 @@
 	<form>
 	<fieldset>
 	<label for="txtTargetTime">Time</label>
-	<input type="text" name="txtTargetTime" id="txtTargetTime"></input>
+	<input type="text" name="txtTargetTime" id="txtTargetTime" />
 	</fieldset>
 	</form>
 </div>
@@ -196,19 +196,19 @@
 	<fieldset>
 
 		<label for="txtAddressRW">Address (hex)</label>
-		<input type="text" name="txtAddressRW" id="txtAddressRW"></input>
+		<input type="text" name="txtAddressRW" id="txtAddressRW" />
 
 		<label for="txtBytesRW">Byte count (dec)</label>
-		<input type="text" name="txtBytesRW" id="txtBytesRW" value="100"></input>
+		<input type="text" name="txtBytesRW" id="txtBytesRW" value="100" />
 
 		<label for="chkCompress">Compress unused addresses</label>
 		<input type="checkbox" name="chkCompress" id="chkCompress" checked="true" /><br/>
 
-		<label for="txtTimeTW">Start time of analysis</label>
-		<input type="text" name="txtTimeRW" id="txtTimeRW" value="0"></input>
+		<label for="txtTimeRW">Start time of analysis</label>
+		<input type="text" name="txtTimeRW" id="txtTimeRW" value="0" />
 
 		<label for="txtCyclesRW">Number of cycles to analyze (dec)</label>
-		<input type="text" name="txtCyclesRW" id="txtCyclesRW" value="50000"></input>
+		<input type="text" name="txtCyclesRW" id="txtCyclesRW" value="50000" />
 
 	</fieldset>
 
@@ -223,11 +223,11 @@
 	<fieldset>
 
 	<label for="txtAddress">Address (hex)</label>
-	<input type="text" name="txtAddress" id="txtAddress"></input>
+	<input type="text" name="txtAddress" id="txtAddress" />
 
 
 	<label for="txtTime">Start time of analysis</label>
-	<input type="text" name="txtTime" id="txtTime" value="0"></input>
+	<input type="text" name="txtTime" id="txtTime" value="0" />
 
 	</fieldset>
 	</form>
@@ -240,7 +240,7 @@
 	<fieldset>
 
 	<label for="txtMemAddr">Address (hex)</label>
-	<input type="text" name="txtMemAddr" id="txtMemAddr"></input>
+	<input type="text" name="txtMemAddr" id="txtMemAddr" />
 
 
 	</fieldset>
