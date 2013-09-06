@@ -136,6 +136,7 @@ class MemoryHistory:
 		return result[0]
 	def getWithTime(self, address, time):
 		#Plan A: Look up previous write
+		
 		writtenAt = self.previousWrite(address, time)
 		if writtenAt is not None:
 			value = self.getByteWrittenAt(address, writtenAt)
@@ -146,6 +147,7 @@ class MemoryHistory:
 
 		#Plan B: Next read after this unresolvable write
 		readAt=self.nextRead(address, writtenAt)
+
 		#Confirm that there is no intervening write that could have changed the value 
 		#in between
 		nextWrite = self.nextWrite(address,writtenAt+1) #XXX: Check off-by one
@@ -153,9 +155,18 @@ class MemoryHistory:
 			return None
 
 		if readAt is None: return None
+
 		value = self.getByteReadAt(address, readAt)
 		if value is not None:
 			return value, -1
+		else:
+			#XXX: Should probably loop here, nuy for how long?
+			nextNext = self.nextRead(address, readAt)
+			if nextNext is not None:
+				value = self.getByteReadAt(address, nextNext)
+				if nextNext is not None:
+					return value, -1
+
 		
 	def getByteWrittenAt(self, address, writtenAt):
 		cycle = self.newDF.getCycle(writtenAt)
@@ -171,7 +182,10 @@ class MemoryHistory:
 					#XXX: Add proper data structure
 					source = str(source).strip()
 					regName = source[:source.find("_")]
-					index = int(source[source.find("_")+1:])
+					try:
+						index = int(source[source.find("_")+1:])
+					except ValueError:
+						return None
 					if regName == "const":
 						return index
 					fullVal = cycle.regs[regName.upper()]
@@ -201,7 +215,7 @@ class MemoryHistory:
 			fullVal = nextCycle.regs[regName.upper()]
 			val = (fullVal>>index)&0xff
 			return val
-		return -1
+		return None
 			
 				
 	def iterMemoryEvents(self, byteArray, startTime, endTime, groupByTime = False):
