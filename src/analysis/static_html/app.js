@@ -24,7 +24,7 @@ function formatChar(c){
 
 
 function byteToHex(b){
-	if(b != -1){
+	if(b != null && b != -1){
 		hexed = b.toString(16).toUpperCase();
 		if(hexed.length == 1) hexed = "0" + hexed;
 	}else{
