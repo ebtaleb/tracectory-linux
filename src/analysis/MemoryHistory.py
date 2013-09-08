@@ -1,6 +1,7 @@
 from Cycle import *
 from taint import *
 from collections import defaultdict
+from TreeServerClient import *
 import json
 import time
 import math
@@ -65,45 +66,6 @@ class MemoryLocation:
 
 	def __repr__(self):
 		return "<MemoryLocation: %08X (writes: %d, reads: %d)>" % (int(self.loc), self.numWrites(), self.numReads())
-
-import zmq
-context = zmq.Context()
-class RangeServer:
-	def __init__(self, port):
-		self.socket = context.socket(zmq.REQ)
-		self.socket.connect("tcp://localhost:%d" % port)
-	def ping(self):
-		self.socket.send("PING")
-		poller = zmq.Poller()
-		poller.register(self.socket, zmq.POLLIN)
-		evts = poller.poll(100)
-		if len(evts) == 0: return False
-		return self.socket.recv() == "PONG"
-	def getTree(self, treeName):
-		return RangeTree(self, treeName)
-	def treeExists(self, treeName):
-		if not self.ping(): raise KeyError
-		self.socket.send("TREEEXISTS %s" % treeName)
-		res = self.socket.recv()
-		return int(res)
-
-class RangeTree:
-	def __init__(self, server, name):
-		self.server = server
-		self.treeName = name
-
-		if not self.server.treeExists(name):
-			raise KeyError, "No such tree"
-	def xBitmap(self, startX, endX, startY, yIncrement, yResolution):
-		queryStr = "XBITMAP %s %d %d %d %d %d" % (self.treeName, startX, endX, startY, yIncrement, yResolution)
-		print queryStr
-		self.server.socket.send(queryStr)
-		res = self.server.socket.recv()
-		print "-",res,"-"
-		return [int(x) for x in res if x in ("0","1")]
-
-
-
 class MemoryHistory:
 	def __init__(self, target):
 		self.db = target.getDB()
@@ -302,6 +264,8 @@ class MemoryHistory:
 
 		self.db.meta.update( {}, { "$set" : { "memAddrs" : addresses }})
 		return addresses
+
+	#Debug code
 	def testAcceleration(self):
 		addresses = self.getAllAddresses()
 		addrResolution = 140
@@ -312,8 +276,7 @@ class MemoryHistory:
 		timeResolution = 100
 		timeBucketSize = int(max(math.ceil((1.0 * endTime - startTime) / timeResolution), 1))
 
-
-		server = RangeServer(5665)
+		server = TreeServerClient(5665)
 		rServer = server.getTree("%s_reads" % self.target.getName())
 
 		for addrIdx in xrange(0, len(addresses ) -2, addrBucketSize):
@@ -336,7 +299,8 @@ class MemoryHistory:
 
 			
 
-
+	#This is used when zooming the memory graph
+	#In need of refactoring, but at least seems to work quite OK
 	def getOverview(self, timeResolution = 30, addrResolution=30, startBlock = 0, startTime = None, endTime = None, startAddr = 0, endAddr = None):	
 		if endTime is None: endTime = self.target.getMaxTime()
 		if startTime is None: startTime = 0
@@ -356,7 +320,7 @@ class MemoryHistory:
 		perfStartTime = time.time()
 
 		acceleration = True
-		server = RangeServer(5665)
+		server = TreeServerClient(5665)
 		try:
 			rServer = server.getTree("%s_reads" % self.target.getName())
 			wServer = server.getTree("%s_writes" % self.target.getName())
